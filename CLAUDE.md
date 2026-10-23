@@ -13,6 +13,9 @@ check before believing its results. Read `docs/decisions.md` for what was decide
 | `build.py` | Fills the placeholders with Eklavya's tokens and mascot and writes `index.html` |
 | `index.html` | Built output, committed so it opens with no build step. Never edit it by hand |
 | `server.mjs` | Local server: serves the page and runs the live model calls through `claude -p`, with a cache and a replay mode |
+| `scripts/check-all.sh` | Runs every automated check in order: build, `verify-numbers.js`, `smoke-render.js`, `test-server.mjs`, `test-loop.js`, the design grep |
+| `scripts/test-server.mjs` | Tests `server.mjs` against a fake `claude`: validation, cache, replay, reset, failures, no leaked slots. No model is called |
+| `scripts/test-loop.js` | Drives the page's loop code in a fake DOM against a stub server: the happy path, every failure path, Retry |
 | `scripts/verify-numbers.js` | Checks the scoring gates, the Coach-reply parser, the diff and the data split (no mocked scores exist) |
 | `scripts/smoke-render.js` | Renders every step of every screen in a fake DOM and reports any that throw |
 | `.claude/rules/` | The speaker's standing requirements, one file per area: `slides.md`, `live-model-calls.md`, `checks.md` |

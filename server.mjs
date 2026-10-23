@@ -43,20 +43,36 @@ const MAX_TEXT = 6000;
 const CACHE_DIR = process.env.CACHE_DIR ? path.resolve(process.env.CACHE_DIR) : path.join(ROOT, ".cache");
 const CACHE_FILE = path.join(CACHE_DIR, "llm.json");
 let cache = {};
-try { cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8")); } catch { cache = {}; }
+if (fs.existsSync(CACHE_FILE)) {
+  try {
+    cache = JSON.parse(fs.readFileSync(CACHE_FILE, "utf8"));
+    if (!cache || typeof cache !== "object" || Array.isArray(cache)) throw new Error("the file is not a JSON object");
+  } catch (e) {
+    // Never overwrite recordings we cannot read: keep the damaged file beside the new one, and say so.
+    const kept = path.join(CACHE_DIR, `llm.corrupt-${new Date().toISOString().replace(/[:.]/g, "-")}.json`);
+    try { fs.renameSync(CACHE_FILE, kept); } catch { /* best effort */ }
+    console.error(`WARNING: ${CACHE_FILE} could not be read (${e.message}). Moved to ${kept}. Starting with no recordings.`);
+    cache = {};
+    if (REPLAY) { console.error("Replay mode needs recordings: stopping."); process.exit(1); }
+  }
+}
 let saveTimer = null;
+let generation = 0; // bumped by /api/reset, so a call that was already running cannot write into the emptied cache
+function flushCache() {
+  clearTimeout(saveTimer);
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+  const tmp = CACHE_FILE + ".tmp";
+  fs.writeFileSync(tmp, JSON.stringify(cache));
+  fs.renameSync(tmp, CACHE_FILE);
+}
 function saveCache() {
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => {
-    fs.mkdirSync(CACHE_DIR, { recursive: true });
-    const tmp = CACHE_FILE + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(cache));
-    fs.renameSync(tmp, CACHE_FILE);
-  }, 200);
+  saveTimer = setTimeout(flushCache, 200);
 }
 const keyOf = (...parts) => crypto.createHash("sha256").update(parts.join("\u0000")).digest("hex");
 
 /* ---------- running claude -p: a plain model call, nothing else ---------- */
+const live = new Set(); // running child processes, killed on shutdown
 let running = 0;
 const waiting = [];
 const slot = () => new Promise((resolve) => { if (running < MAX_PARALLEL) { running++; resolve(); } else waiting.push(resolve); });
@@ -75,6 +91,7 @@ function claudeCall({ model, system, prompt, schema }) {
   return new Promise((resolve, reject) => {
     const started = Date.now();
     const child = spawn("claude", args, { env, cwd: os.tmpdir(), stdio: ["pipe", "pipe", "pipe"], detached: true });
+    live.add(child);
     let out = "", err = "", done = false;
     const finish = (fn, value) => { if (done) return; done = true; clearTimeout(timer); fn(value); };
     const kill = () => { try { process.kill(-child.pid, "SIGKILL"); } catch { /* already gone */ } };
@@ -83,8 +100,10 @@ function claudeCall({ model, system, prompt, schema }) {
     child.stderr.on("data", (d) => { err = (err + d).slice(-1500); });
     child.on("error", (e) => finish(reject, new Error(e.code === "ENOENT" ? "the claude CLI was not found on PATH" : e.message)));
     child.on("close", () => {
+      live.delete(child);
       let j;
       try { j = JSON.parse(out); } catch { return finish(reject, new Error("claude -p printed no JSON: " + (err.trim() || out.slice(0, 200)))); }
+      if (!j || typeof j !== "object") return finish(reject, new Error("claude -p printed JSON that is not an object: " + out.slice(0, 100)));
       if (j.is_error || j.subtype !== "success") return finish(reject, new Error(String(j.result || j.subtype || "claude -p failed").slice(0, 300)));
       const u = j.usage || {};
       finish(resolve, {
@@ -101,22 +120,38 @@ function claudeCall({ model, system, prompt, schema }) {
 }
 
 // `fresh` skips the recording and calls the model again (the new answer replaces the recorded one).
-async function cached(key, make, fresh = false) {
-  if (!fresh && cache[key]) return { ...cache[key], cached: true };
-  if (REPLAY) throw Object.assign(new Error(fresh ? "replay mode never calls a model" : "not recorded: run without --replay once to record this call"), { status: 503 });
-  await slot();
-  try {
-    const result = { ...(await make()), at: new Date().toISOString() };
-    cache[key] = result;
-    saveCache();
-    return { ...result, cached: false };
-  } finally { release(); }
+// Identical calls that are already running share one model call. `label` names the call in a replay miss.
+const inflight = new Map();
+function cached(key, make, fresh = false, label = "") {
+  if (!fresh && cache[key]) return Promise.resolve({ ...cache[key], cached: true });
+  if (REPLAY) return Promise.reject(Object.assign(new Error(fresh ? "replay mode never calls a model" : `not recorded: ${label || "this call"}. Run without --replay once to record it`), { status: 503 }));
+  if (!fresh && inflight.has(key)) return inflight.get(key);
+  const run = (async () => {
+    await slot();
+    const gen = generation;
+    try {
+      const result = { ...(await make()), at: new Date().toISOString() };
+      if (gen === generation) { cache[key] = result; saveCache(); }
+      return { ...result, cached: false };
+    } finally { release(); }
+  })();
+  if (!fresh) { inflight.set(key, run); const clear = () => inflight.delete(key); run.then(clear, clear); }
+  return run;
 }
 
-const act = ({ prompt, fresh }) => cached(keyOf("act", ACTOR, ACTOR_SYSTEM, prompt), () => claudeCall({ model: ACTOR, system: ACTOR_SYSTEM, prompt }), fresh === true);
+const snippet = (t) => JSON.stringify(String(t).slice(0, 60));
+const act = ({ prompt, fresh }) => cached(keyOf("act", ACTOR, ACTOR_SYSTEM, prompt), async () => {
+  const r = await claudeCall({ model: ACTOR, system: ACTOR_SYSTEM, prompt });
+  if (!r.text.trim()) throw Object.assign(new Error("the model returned an empty reply"), { status: 502 });
+  return r;
+}, fresh === true, `${ACTOR} act ${snippet(prompt)}`);
 
 // The page builds the coach's whole input (so it can show the exact text) and the server only runs it.
-const coach = ({ prompt, fresh }) => cached(keyOf("coach", COACH, COACH_SYSTEM, prompt), () => claudeCall({ model: COACH, system: COACH_SYSTEM, prompt }), fresh === true);
+const coach = ({ prompt, fresh }) => cached(keyOf("coach", COACH, COACH_SYSTEM, prompt), async () => {
+  const r = await claudeCall({ model: COACH, system: COACH_SYSTEM, prompt });
+  if (!r.text.trim()) throw Object.assign(new Error("the Coach returned an empty reply"), { status: 502 });
+  return r;
+}, fresh === true, `${COACH} coach ${snippet(prompt)}`);
 
 function gradePrompt({ log, expected, reply }) {
   return [
@@ -128,7 +163,12 @@ function gradePrompt({ log, expected, reply }) {
 }
 const grade = async (b) => {
   const prompt = gradePrompt(b);
-  const r = await cached(keyOf("grade", GRADER, GRADER_SYSTEM, prompt), () => claudeCall({ model: GRADER, system: GRADER_SYSTEM, prompt, schema: GRADE_SCHEMA }), b.fresh === true);
+  const r = await cached(keyOf("grade", GRADER, GRADER_SYSTEM, prompt), async () => {
+    const x = await claudeCall({ model: GRADER, system: GRADER_SYSTEM, prompt, schema: GRADE_SCHEMA });
+    // A grader that answers without a verdict must not be recorded as "wrong idea": that would be a false finding replayed forever.
+    if (!x.structured || typeof x.structured.right_idea !== "boolean") throw Object.assign(new Error("the grader returned no verdict"), { status: 502 });
+    return x;
+  }, b.fresh === true, `${GRADER} grade ${snippet(b.log)}`);
   const s = r.structured || {};
   return { ...r, rightIdea: s.right_idea === true, why: String(s.why || "") };
 };
@@ -154,9 +194,11 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "POST" && url.pathname.startsWith("/api/")) {
       // A custom header plus JSON makes a cross-site form post impossible: it would need a CORS preflight, which we never grant.
       if (req.headers["x-walkthrough"] !== "1" || !String(req.headers["content-type"] || "").startsWith("application/json")) return send(res, 400, { error: "bad request" });
-      let raw = "";
-      for await (const chunk of req) { raw += chunk; if (raw.length > MAX_BODY) return send(res, 413, { error: "too large" }); }
-      const body = JSON.parse(raw || "{}");
+      const chunks = []; let size = 0;
+      for await (const chunk of req) { size += chunk.length; if (size > MAX_BODY) return send(res, 413, { error: "request body too large" }); chunks.push(chunk); }
+      let body;
+      try { body = JSON.parse(Buffer.concat(chunks).toString("utf8") || "{}"); } catch { return send(res, 400, { error: "the request body is not valid JSON" }); }
+      if (!body || typeof body !== "object" || Array.isArray(body)) return send(res, 400, { error: "the request body must be a JSON object" });
       if (url.pathname === "/api/reset") {
         // Start from empty: forget every recorded call, keeping a timestamped backup beside it.
         if (REPLAY) return send(res, 503, { error: "replay mode never changes the recording" });
@@ -165,6 +207,8 @@ const server = http.createServer(async (req, res) => {
         fs.mkdirSync(CACHE_DIR, { recursive: true });
         if (cleared) { backup = `llm.${new Date().toISOString().replace(/[:.]/g, "-")}.json`; fs.writeFileSync(path.join(CACHE_DIR, backup), JSON.stringify(cache)); }
         cache = {};
+        generation++;
+        inflight.clear();
         clearTimeout(saveTimer);
         fs.writeFileSync(CACHE_FILE, "{}");
         return send(res, 200, { cleared, backup });
@@ -178,7 +222,9 @@ const server = http.createServer(async (req, res) => {
         return send(res, 200, await coach(body));
       }
       if (url.pathname === "/api/grade") {
-        if (!str(body.log, 1000) || !str(body.reply) || !LABELS.includes(body.expected)) return send(res, 400, { error: "log, reply and a known expected label are required" });
+        if (!str(body.log, 1000)) return send(res, 400, { error: "log must be 1 to 1000 characters" });
+        if (!str(body.reply, 20000)) return send(res, 400, { error: "reply must be 1 to 20000 characters" });
+        if (!LABELS.includes(body.expected)) return send(res, 400, { error: "expected must be one of the allowed labels" });
         return send(res, 200, await grade(body));
       }
     }
@@ -186,6 +232,12 @@ const server = http.createServer(async (req, res) => {
   } catch (e) {
     return send(res, e.status || 500, { error: String(e.message || e) });
   }
+});
+// Save the last recordings and stop the model processes on Ctrl+C or a stop signal.
+for (const sig of ["SIGINT", "SIGTERM"]) process.on(sig, () => {
+  for (const c of live) { try { process.kill(-c.pid, "SIGKILL"); } catch { /* gone */ } }
+  try { if (!REPLAY) flushCache(); } catch { /* nothing to save */ }
+  process.exit(0);
 });
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Walkthrough: http://127.0.0.1:${PORT}   (${REPLAY ? "replay only" : "live"})`);

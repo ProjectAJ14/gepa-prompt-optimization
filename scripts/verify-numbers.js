@@ -1,7 +1,6 @@
-// Recomputes every MOCKED score the walkthrough displays (versions 2 to 4 and the rejected candidate) and compares it
-// with the numbers the story claims. Versions 1 and 2 on the first screens are live model calls and are not checked here.
-// Run after any change to the mocked outputs, the logs or the scoring: node scripts/verify-numbers.js
-// Exits 1 on a mismatch. It does not open a browser; render checks are separate (see CLAUDE.md).
+// Checks the code around the model calls that needs no model: the three scoring gates and the score, the parsing of the Coach's reply,
+// the diff of a new prompt, and the shape of the 30 logs. Nothing on the slides is mocked, so there are no stored scores to compare.
+// Run after any change to scoring, parsing or the logs: node scripts/verify-numbers.js. Exits 1 on a problem. It does not open a browser.
 const fs = require("fs");
 const vm = require("vm");
 const path = require("path");
@@ -46,6 +45,7 @@ const okPrompt = "<why>All fenced.</why>\n<prompt>Rules\n<log>\n{{log}}\n</log><
 check("parseCoach reads prompt and why", parseCoach(okPrompt).prompt.includes("{{log}}") && parseCoach(okPrompt).why === "All fenced.");
 check("parseCoach refuses a reply with no prompt block", !!parseCoach("<why>x</why>").error);
 check("parseCoach refuses a prompt that lost {{log}}", !!parseCoach("<prompt>no placeholder</prompt>").error);
+check("parseCoach refuses a prompt over 3500 characters (the actor route takes 4000)", !!parseCoach("<prompt>" + "x".repeat(3600) + "{{log}}</prompt>").error);
 check("parseCoach refuses a prompt with {{log}} twice", !!parseCoach("<prompt>{{log}} {{log}}</prompt>").error);
 
 const d = diffSegs("a\nb\n{{log}}", "a\nnew line\n{{log}}");

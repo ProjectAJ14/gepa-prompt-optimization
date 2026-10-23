@@ -278,7 +278,7 @@
 
 const LABELS = ["SCHEMA_DRIFT", "LATE_DATA", "RESOURCE_EXHAUSTED", "DATA_QUALITY", "UPSTREAM_FAILURE"];
 
-// Invented failure logs. `added` logs only join the training set on the "fix the data" screen.
+// Invented failure logs: 30, ten per split, split by pipeline.
 const LOGS = [
   { id: 1,  pipe: "spark-clicks",    split: "train", exp: "RESOURCE_EXHAUSTED", text: "ExecutorLostFailure: executor 12 exited (OOMKilled)" },
   { id: 2,  pipe: "spark-clicks",    split: "train", exp: "SCHEMA_DRIFT",       text: "AnalysisException: cannot resolve 'device_type' given input columns: [device, ts, user_id]" },
@@ -312,7 +312,6 @@ const LOGS = [
   { id: 30, pipe: "beam-telemetry",  split: "test",  exp: "DATA_QUALITY",       text: "640 readings outside the allowed range for temp_c (above 1000)" },
 ];
 
-// Fixed model outputs per prompt version, so the demo never calls a model.
 // Gates first, then quality: a failed gate keeps the score under 0.5.
 function scoreReply(raw, expected) {
   let o = null;
@@ -399,11 +398,11 @@ const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">$
    Versions 1 and 2 run for real through server.mjs, which calls `claude -p`: one model acts, a different one
    grades. Nothing is mocked on these screens. If the server is not running, they say so instead of inventing output. */
 const blankRuns = () => ({ v1: {}, v2: {}, v3: {}, v4: {}, v5: {}, v6: {}, v7: {} });
-const R = { status: "checking", actor: "", grader: "", mode: "live", act: blankRuns(), grade: blankRuns(), cand: { v3: null }, loop: null, coachModel: "", coachRes: null, err: {}, busy: new Set(), since: {}, recorded: 0, confirmReset: false, note: "" };
+const R = { coachBad: {}, status: "checking", actor: "", grader: "", mode: "live", act: blankRuns(), grade: blankRuns(), cand: { v3: null }, loop: null, coachModel: "", coachRes: null, err: {}, busy: new Set(), since: {}, recorded: 0, confirmReset: false, note: "" };
 const nice = (m) => String(m || "").replace(/^claude-/, "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
 const segText = (segs) => segs.map((x) => x.t).join("");
 const livePrompt = (v) => (v === "v1" ? segText(v2Segs(0)) : v === "v2" ? segText(v2Segs(5)) : R.cand[v] ? R.cand[v].prompt : "");
-const ALL = LOGS.filter((l) => !l.added);
+const ALL = LOGS;
 const busyAdd = (key) => { R.busy.add(key); R.since[key] = Date.now(); };
 async function api(url, body) {
   const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", "x-walkthrough": "1" }, body: JSON.stringify(body) });
@@ -427,18 +426,18 @@ function ensure(v, ids, withGrade) {
     if (needGrade) busyAdd(kg);
     jobs.push(async () => {
       if (needAct) {
-        try { R.act[v][id] = await api("/api/act", { prompt: livePrompt(v).replace("{{log}}", log.text) }); } catch (e) { R.err[ka] = String(e.message || e); }
+        try { R.act[v][id] = await api("/api/act", { prompt: livePrompt(v).replace("{{log}}", () => log.text) }); } catch (e) { R.err[ka] = String(e.message || e); }
         R.busy.delete(ka); redraw();
       }
       if (needGrade) {
-        if (R.act[v][id]) { try { R.grade[v][id] = await api("/api/grade", { log: log.text, expected: log.exp, reply: R.act[v][id].text }); } catch (e) { R.err[kg] = String(e.message || e); } }
+        if (R.act[v][id]) { try { R.grade[v][id] = await api("/api/grade", { log: log.text, expected: log.exp, reply: R.act[v][id].text || "(empty reply)" }); } catch (e) { R.err[kg] = String(e.message || e); } }
         R.busy.delete(kg); redraw();
       }
     });
   }
   if (jobs.length) { redraw(); pool(jobs, 4); }
 }
-// The same three gates as the mocks, on a real reply. null while the model has not answered yet.
+// The three gates and the score, applied to a real reply. null while the model has not answered yet.
 function liveJudge(v, l) {
   const a = R.act[v][l.id];
   if (!a) return null;
@@ -473,8 +472,8 @@ async function rerun(kind, v, id) {
   if (R.busy.has(key)) return;
   busyAdd(key); delete R.err[key]; redraw();
   try {
-    if (kind === "act") { R.act[v][id] = await api("/api/act", { prompt: livePrompt(v).replace("{{log}}", log.text), fresh: true }); delete R.grade[v][id]; delete R.err[kg]; }
-    else R.grade[v][id] = await api("/api/grade", { log: log.text, expected: log.exp, reply: R.act[v][id].text, fresh: true });
+    if (kind === "act") { R.act[v][id] = await api("/api/act", { prompt: livePrompt(v).replace("{{log}}", () => log.text), fresh: true }); delete R.grade[v][id]; delete R.err[kg]; }
+    else R.grade[v][id] = await api("/api/grade", { log: log.text, expected: log.exp, reply: R.act[v][id].text || "(empty reply)", fresh: true });
   } catch (e) { R.err[key] = String(e.message || e); }
   R.busy.delete(key); redraw();
 }
@@ -491,7 +490,7 @@ function runGrid(v) {
     return `<div class="cell">
       <div class="cellhead"><b>Run ${n + 1}</b> · log ${id} · ${esc(l.pipe)}</div>
       <div class="cellbody">
-        <div><h3>Input prompt</h3><pre class="p" tabindex="0" aria-label="Input prompt, log ${id}">${esc(livePrompt(v).replace("{{log}}", l.text))}</pre></div>
+        <div><h3>Input prompt</h3><pre class="p" tabindex="0" aria-label="Input prompt, log ${id}">${esc(livePrompt(v).replace("{{log}}", () => l.text))}</pre></div>
         <div><h3>Model output · ${esc(nice(a ? a.model : R.actor))}</h3>${out}</div>
       </div>
       <div class="runrow">${a && !running ? `<span class="meta">${esc(metaLine(a))}<br>${esc(seen)}</span>` : "<span></span>"}${runNow("act", v, id, "Run now")}</div>
@@ -517,7 +516,7 @@ function detailRow(v, l, j, cols) {
   const gates = [["json", j.json], ["label ok", j.allowed], ["correct", j.correct]].map(([n, b]) => `<span class="${b ? "ok" : "bad"}">${n}: ${b ? "pass" : "fail"}</span>`).join(" · ");
   const verdict = runG || !g ? `${spinner}judging…` : `<span class="${g.rightIdea ? "ok" : "bad"}">${g.rightIdea ? "right idea" : "wrong idea"}</span>`;
   return `<tr class="detail"><td colspan="${cols}"><div class="dgrid reveal">
-    <div class="dbox"><h3>Input prompt</h3><pre>${esc(livePrompt(v).replace("{{log}}", l.text))}</pre></div>
+    <div class="dbox"><h3>Input prompt</h3><pre>${esc(livePrompt(v).replace("{{log}}", () => l.text))}</pre></div>
     <div class="dbox"><h3>Model output · ${esc(nice(a.model))}</h3>${runA ? `<div class="boxfix">${loader(`${nice(R.actor)} is answering…`, `a:${v}:${l.id}`)}</div>` : `<pre>${esc(a.text.trim())}</pre>`}
       <div class="runrow">${runA ? "<span></span>" : `<span class="meta">${esc(metaLine(a))}</span>`}${runNow("act", v, l.id, "Run now")}</div></div>
     <div class="dbox"><h3>Score and judge</h3>
@@ -540,9 +539,10 @@ function titleActions() {
 }
 // Start from empty: the server forgets its recordings (keeping a backup) and the page forgets its results and its place.
 async function startEmpty() {
+  if (R.busy.size || (R.loop && R.loop.running)) { R.note = "Wait for the running calls to finish before clearing."; R.confirmReset = false; redraw(); return; }
   try {
     const r = await api("/api/reset", {});
-    R.act = blankRuns(); R.grade = blankRuns(); R.cand = { v3: null }; R.loop = null; R.coachRes = null; R.err = {}; R.recorded = 0;
+    R.act = blankRuns(); R.grade = blankRuns(); R.cand = { v3: null }; R.loop = null; R.coachRes = null; R.coachBad = {}; R.err = {}; R.recorded = 0;
     S.st = {}; S.open = new Set();
     R.note = `Cleared ${r.cleared} recorded call${r.cleared === 1 ? "" : "s"}${r.backup ? `. Backup: .cache/${r.backup}` : ""}. Every call from here is live.`;
   } catch (e) { R.note = "Could not clear: " + String(e.message || e); }
@@ -575,11 +575,18 @@ const miniLogs = () => MINI.map((id) => LOGS.find((l) => l.id === id));
 const ids = (split) => ALL.filter((l) => l.split === split).map((l) => l.id);
 const jsonWhy = (text) => (text.trim().startsWith("```") ? "the reply is wrapped in a code fence, so a script cannot parse it" : "the reply is not JSON with a label and a reason");
 const miniReady = () => MINI.every((id) => { const j = liveJudge("v2", LOGS.find((l) => l.id === id)); return j && j.right !== null; });
-function coachPromptFor(v, failIds, tried = []) {
+function coachPromptFor(v, failIds, tried = [], replyMax = 500) {
+  const out = coachPromptText(v, failIds, tried, replyMax);
+  // The route refuses anything over 12000 characters: drop earlier attempts first, then shorten the replies.
+  if (out.length <= 11500) return out;
+  const noTried = coachPromptText(v, failIds, [], replyMax);
+  return noTried.length <= 11500 ? noTried : coachPromptText(v, failIds, [], 150);
+}
+function coachPromptText(v, failIds, tried, replyMax) {
   const cases = failIds.map((id, n) => {
     const l = LOGS.find((x) => x.id === id), a = R.act[v][id], j = liveJudge(v, l), g = R.grade[v][id];
     const gate = (name, ok, why) => `${name}: ${ok ? "pass" : "fail"}${!ok && why ? ` (${why})` : ""}`;
-    return [`Example ${n + 1}`, `Log: ${l.text}`, `Right answer: ${l.exp}`, `Reply: ${a.text.trim().slice(0, 1200)}`,
+    return [`Example ${n + 1}`, `Log: ${l.text}`, `Right answer: ${l.exp}`, `Reply: ${a.text.trim().slice(0, replyMax)}`,
       `Checks: ${gate("is JSON", j.json, jsonWhy(a.text))}; ${gate("label allowed", j.allowed)}; ${gate("label correct", j.correct)}`,
       `Grader's note: ${g.rightIdea ? "right idea" : "wrong idea"}. ${g.why}`].join("\n");
   }).join("\n\n");
@@ -601,6 +608,7 @@ function parseCoach(text) {
   const prompt = pick("prompt"), why = pick("why");
   if (!prompt) return { error: "the Coach's reply had no <prompt> block" };
   if (prompt.split("{{log}}").length !== 2) return { error: "the new prompt must contain {{log}} exactly once" };
+  if (prompt.length > 3500) return { error: `the new prompt is too long (${prompt.length} characters; the limit is 3500)` };
   return { prompt, why };
 }
 // Which lines of the new prompt are new? They are the ones the Coach added or changed.
@@ -626,15 +634,15 @@ async function runCoach(fresh) {
     res.input = input;
     const parsed = parseCoach(res.text);
     if (!parsed.error) parsed.res = res;
-    R.coachRes = res;
+    R.coachRes = res; R.coachBad.v3 = !!parsed.error;
     if (parsed.error) { R.cand.v3 = null; R.err[key] = parsed.error; }
     else { R.cand.v3 = parsed; R.loop = null; for (const v of ["v3", "v4", "v5", "v6", "v7"]) { if (v !== "v3") R.cand[v] = null; R.act[v] = {}; R.grade[v] = {}; } for (const k of Object.keys(R.err)) if (/^[ag]:v[3-7]:/.test(k) || /^c:v[4-7]$/.test(k)) delete R.err[k]; }
   } catch (e) { R.err[key] = String(e.message || e); }
   R.busy.delete(key); redraw();
 }
 function maybeCoach() {
-  if (R.status !== "live" || R.coachRes || R.busy.has("c:v3") || R.err["c:v3"] || !miniReady()) return;
-  runCoach(false);
+  if (R.status !== "live" || R.cand.v3 || R.busy.has("c:v3") || R.err["c:v3"] || !miniReady()) return;
+  runCoach(R.coachBad.v3 === true);
 }
 // A screen reached by the Jump menu may need version 3 before the Coach slide has run: ask for the five results, then the Coach (both recorded after the first run).
 const needCand = () => { ensure("v2", MINI, true); maybeCoach(); };
@@ -647,8 +655,8 @@ async function warmAll() {
   if (R.cand.v3) { ensure("v3", ALL.map((l) => l.id), true); await idle(); await runLoop(); await idle(); }
   redraw();
 }
-// The loop, repeated: the Coach reads only the failing TRAIN logs, every new candidate is run on all 30 logs, the Judge keeps the best on
-// validation, and the loop stops when one candidate passes all three gates on all 30 logs or the budget runs out.
+// The loop, repeated: the Coach reads the failing logs from every split (so the test split is spent), every new candidate is run on all 30
+// logs, the Judge accepts a child that passes more logs, and the loop stops when one candidate passes all three gates on all 30 logs or the budget runs out.
 const LOOP_EXTRA = 4; // rounds after round 1 (versions 4 to 7)
 const gatesPass = (j) => !!(j && j.json && j.allowed && j.correct);
 const passCount = (v) => ALL.filter((l) => gatesPass(liveJudge(v, l))).length;
@@ -672,36 +680,41 @@ function costLine(v, idList) {
 const loopSummary = (v, parentV) => ({ v, cost: costOf(v), parent: parentV, why: R.cand[v] ? R.cand[v].why : "", lines: R.cand[v] ? addedLines(livePrompt(parentV), R.cand[v].prompt) : [],
   train: liveMean(v, "train"), val: liveMean(v, "val"), test: liveMean(v, "test"), pass: passCount(v), status: "" });
 async function runLoop() {
-  if (R.status !== "live" || (R.loop && (R.loop.running || R.loop.state === "done"))) return;
+  try { await runLoopInner(); } catch (e) { if (R.loop) { R.loop.state = "error"; R.loop.stop = String((e && e.message) || e); R.loop.running = false; } R.busy.clear(); redraw(); }
+}
+async function runLoopInner() {
+  if (R.status !== "live" || (R.loop && (R.loop.running || R.loop.state === "done" || R.loop.state === "error"))) return; // an errored loop waits for Retry: it must not restart itself on every redraw
   const L = (R.loop = { running: true, state: "running", phase: "student", rounds: [], final: null, stop: "", n: 0 });
   const failed = (v) => Object.keys(R.err).some((k) => k.includes(`:${v}:`) || k === `c:${v}`);
   const evalAll = async (v) => { L.cur = v; L.phase = "student"; ensure(v, ALL.map((l) => l.id), true); redraw(); await idle(); };
   const stopWith = (state, why) => { L.state = state; L.stop = why; L.running = false; redraw(); };
+  const complete = (v) => ALL.every((l) => R.act[v] && R.act[v][l.id] && R.grade[v] && R.grade[v][l.id]);
   await evalAll("v2"); await evalAll("v3");
-  if (failed("v2") || failed("v3")) return stopWith("error", "a call failed");
+  if (failed("v2") || failed("v3") || !complete("v2") || !complete("v3")) return stopWith("error", Object.values(R.err)[0] || "some results are missing");
   L.rounds.push({ ...loopSummary("v3", "v2"), status: "round 1" });
   // The speaker's call: the loop runs until a prompt passes all 30 logs, so the Coach reads failures from ALL 30, test included. That spends
   // the test split, and the slide says so. The Judge accepts a child that passes more logs than its parent (ties: higher mean score), and
   // the final pick is the prompt that passes the most.
   const mean30 = (v) => ALL.reduce((t, l) => t + liveJudge(v, l).score, 0) / ALL.length;
   const beats = (a, b) => passCount(a) > passCount(b) || (passCount(a) === passCount(b) && mean30(a) > mean30(b));
-  let parent = "v3", final = beats("v3", "v2") ? "v3" : "v2", tried = [];
+  let final = beats("v3", "v2") ? "v3" : "v2", parent = final, tried = []; // a version 3 the Judge dropped does not become the parent
   for (let k = 4; k <= 3 + LOOP_EXTRA; k++) {
     const v = "v" + k; L.n = k - 2;
     if (passCount(parent) === ALL.length) { L.stop = "A candidate passes all three gates on all 30 logs."; break; }
     const fails = failingIds(parent, ALL.map((l) => l.id)).slice(0, 6);
     if (!fails.length) { L.stop = "A candidate passes all three gates on all 30 logs."; break; }
-    L.phase = "coach"; busyAdd(`c:${v}`); redraw();
+    L.phase = "coach"; delete R.err[`c:${v}`]; busyAdd(`c:${v}`); redraw();
     let parsed;
     try {
-      const res = await api("/api/coach", { prompt: coachPromptFor(parent, fails, tried) });
-      parsed = parseCoach(res.text); if (parsed.error) R.err[`c:${v}`] = parsed.error; else parsed.res = res;
+      // A reply that could not be used is cached by the server too, so ask again with `fresh` after a bad one.
+      const res = await api("/api/coach", { prompt: coachPromptFor(parent, fails, tried), fresh: R.coachBad[v] === true });
+      parsed = parseCoach(res.text); R.coachBad[v] = !!parsed.error; if (parsed.error) R.err[`c:${v}`] = parsed.error; else parsed.res = res;
     } catch (e) { R.err[`c:${v}`] = String(e.message || e); }
     R.busy.delete(`c:${v}`);
     if (R.err[`c:${v}`]) return stopWith("error", R.err[`c:${v}`]);
     R.cand[v] = parsed;
     await evalAll(v);
-    if (failed(v)) return stopWith("error", "a call failed");
+    if (failed(v) || !complete(v)) return stopWith("error", Object.values(R.err)[0] || "some results are missing");
     const row = loopSummary(v, parent);
     if (beats(v, parent)) { row.status = "accepted"; parent = v; tried = []; }
     else { row.status = "rejected"; tried = tried.concat(row.lines); }
@@ -728,14 +741,14 @@ const SCREENS = [
   {
     id: "title", title: "Title", tag: null, steps: 0, hints: [["neutral", ""]],
     effect: () => { if (R.status === "live") refreshHealth(); },
-    notes: "Say who you are in one sentence. Then: the next twenty minutes follow one prompt from a one-liner to something measurable. Everything advances with Next.",
+    notes: "Say who you are in one sentence. Then: the talk follows one prompt from a one-liner to something measurable. Everything advances with Next.",
     render: () => `
       <div class="head">
         <div class="eyebrow">A walkthrough</div>
         <h1>Data engineering for <em>prompt optimization</em></h1>
         <p class="lede">How to set up the pipeline around a prompt optimizer, and what to check before you believe what it tells you.</p>
         <p class="mono" style="margin-top:32px">Next steps forward one thing at a time · Previous steps back · N for notes</p>
-        ${R.status === "live" ? titleActions() : ""}
+        ${R.status === "live" ? titleActions() + retryRow() : ""}
       </div>`,
   },
   {
@@ -807,7 +820,7 @@ const SCREENS = [
       const lede = ["", "", "", "", "", ""][st];
       const loopback = st >= 5 ? `<div class="loopback reveal"><span class="chip">repeat until the budget (max_metric_calls) runs out</span></div>` : "";
       const final = st >= 5 ? `<div class="note reveal"><b>Optionally</b>, GEPA also merges two strong candidates. When the budget runs out, you read <code>result.best_candidate</code>.</div>` : "";
-      const why = st === 4 ? `<div class="note reveal"><b>Why keep a pool?</b> The pool holds candidates that excel on different subsets of the tasks, and the next prompt to improve is picked from it. One top prompt would throw those away.</div>` : "";
+      const why = st === 4 ? `<div class="note reveal"><b>Why keep a pool?</b> The pool holds candidates (versions of the prompt) that excel on different subsets of the tasks, and the next prompt to improve is picked from it. One top prompt would throw those away.</div>` : "";
       return `${head("The loop", st >= 5 ? "Then it goes <em>round again</em>" : "A small team, <em>one job each</em>", lede, true)}
         <div class="cast">${shown.map(member).join("")}</div>${loopback}${why}${final}
         <p class="source mono">The characters are a teaching analogy. "Who" says what each one is in real life. Source: GEPA README, read 23 Oct 2026</p>`;
@@ -859,18 +872,18 @@ const SCREENS = [
     },
   },
   {
-    id: "cast", title: "Who plays whom", tag: "live", steps: 5,
+    id: "cast", title: "Who plays whom", tag: null, steps: 5,
     hints: [["curious", "The Teacher is you."], ["focused", "The Student is a real model."], ["thinking", "The Grader is code, plus a second opinion."],
       ["happy", "The Coach is a third model."], ["focused", "The Judge is a rule in code."], ["wink", "One round, by hand, with real models."]],
-    notes: "Now the team from the last slide gets real names. Teacher: you, with the 30 logs split 10, 10, 10. Student: Haiku 4.5 running prompt version 2, which is candidate 0. Grader: three checks in code plus a note from Haiku 5.5. Coach: a third model that reads the failures and rewrites the prompt. Judge: a rule in code. Be clear on the last step: this is GEPA's loop done by hand, one round, with real model calls. It is not the gepa package.",
+    notes: "Now the team from the last slide gets real names. Teacher: you, with the 30 logs split 10, 10, 10. Student: Haiku 4.5 running prompt version 2, which is the seed candidate. Grader: three checks in code plus a note from Haiku 5.5. Coach: a third model that reads the failures and rewrites the prompt. Judge: a rule in code. Be clear on the last step: this is GEPA's loop done by hand, one round, with real model calls. It is not the gepa package.",
     role: (st) => ["teacher", "student", "grader", "coach", "judge", null][st],
     render: (st) => {
       const cast = [
         ["teacher", "Teacher", "You", "30 logs with the right answers: 10 to learn from (train), 10 to choose with (validation), 10 kept sealed (test)."],
-        ["student", "Student", nice(R.actor) || "Claude Haiku 4.5", "Runs prompt version 2, the one we start from. In GEPA's words, candidate 0."],
+        ["student", "Student", nice(R.actor) || "Claude Haiku 4.5", "Runs prompt version 2, the one we start from. In GEPA's words, the seed candidate."],
         ["grader", "Grader", "Three checks in code, plus " + (nice(R.grader) || "Claude Haiku 5.5"), "Is it JSON? Is the label allowed? Is it right? Then a note on whether the idea was right, and why."],
-        ["coach", "Coach", nice(R.coachModel) || "Claude Sonnet 5.5", "Reads the failures and the Grader's notes, then rewrites the prompt. It never sees validation or test."],
-        ["judge", "Judge", "A rule in code", "Keeps the new prompt only if its score improved. Picks by validation score. Opens test once, at the end."],
+        ["coach", "Coach", nice(R.coachModel) || "Claude Sonnet 5.5", "Reads the failures and the Grader's notes, then rewrites the prompt. In this round it never sees validation or test."],
+        ["judge", "Judge", "A rule in code", "Keeps the new prompt only if its score improved. Picks by validation score. Opens test once. On slide 13 the rule changes: the goal is 30 of 30."],
       ];
       const member = (m, k) => `<div class="member reveal${k === st && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${esc(m[2])}</p><p class="gterm"><span>Does</span>${esc(m[3])}</p></div>`;
       const honest = st >= 5 ? `<div class="note warnnote reveal"><b>What is real, and what is simplified.</b> Every model call and every score on the next slides is real. The loop is GEPA's, run by hand for one round, so you can see each role at work. It is not the <code>gepa</code> package: that runs many rounds and keeps a pool of candidates that each do well on different examples. We have two candidates, so the Judge simply compares them.</div>` : "";
@@ -920,7 +933,7 @@ const SCREENS = [
       const runBtn = `<button class="tab runnow" data-act="coachnow" ${running || off ? "disabled" : ""} title="${off ? (R.mode === "replay" ? "Replay mode never calls a model" : "Not connected to the server") : "Ask the Coach again and ignore the recording"}">${running ? spinner + "Running…" : "Run now"}</button>`;
       const outBox = `<div class="dbox"><h3>Coach's reply · ${esc(nice(res ? res.model : R.coachModel))}</h3>${running || (!res && !err) ? `<div class="boxfix">${loader(`${nice(R.coachModel) || "The Coach"} is reading and writing…`, key)}</div>` : err && !res ? `<pre>The call failed: ${esc(err)}</pre>` : `<pre tabindex="0">${esc(res.text.trim())}</pre>`}
         <div class="runrow">${res && !running ? `<span class="meta">${esc(metaLine(res))}</span>` : "<span></span>"}${runBtn}</div></div>`;
-      if (st === 0) return `${head("Round 1", "The Coach <em>reads</em> the five results", `${esc(nice(R.coachModel) || "Claude Sonnet 5.5")} sees the prompt and the five results: log, right answer, reply, checks and note. It never sees validation or test.`, true)}<div class="dgrid one">${inBox}</div>${offlineNote()}`;
+      if (st === 0) return `${head("Round 1", "The Coach <em>reads</em> the five results", `${esc(nice(R.coachModel) || "Claude Sonnet 5.5")} sees the prompt and the five results: log, right answer, reply, checks and note. In this round it never sees validation or test.`, true)}<div class="dgrid one">${inBox}</div>${offlineNote()}`;
       if (st === 1) return `${head("Round 1", "Then it <em>writes</em> a better prompt", "", true)}<div class="dgrid two">${inBox}${outBox}</div>${retryRow()}${offlineNote()}`;
       const c = R.cand.v3;
       if (!c) return `${head("Round 1", "Version 3", "", true)}<div class="dgrid one">${outBox}</div>${retryRow()}${offlineNote()}`;
@@ -932,12 +945,12 @@ const SCREENS = [
   },
   {
     id: "retry", title: "The Student tries again", tag: "live", live: true, steps: 1,
-    hints: [["curious", "Same five logs, new prompt."], ["surprised", "Before and after, side by side."]],
+    hints: [["curious", "Same five logs, new prompt."], ["thinking", "Same five logs. Did the number move?"]],
     notes: "The Student runs the same five logs with version 3, and the Grader marks them again. Before and after, side by side. Click a row to open the exact version 3 prompt, the reply and the note. Do not say it worked until the numbers say so.",
     role: (st) => (st === 0 ? "student" : "grader"),
     effect: () => { needCand(); if (R.cand.v3) ensure("v3", MINI, true); },
     render: (st) => {
-      if (!R.cand.v3) return `${head("Round 1", "Same five logs, <em>version 3</em>")}<div class="note warnnote">There is no version 3 yet. Go back one slide: the Coach writes it.</div>${retryRow()}${offlineNote()}`;
+      if (!R.cand.v3) return `${head("Round 1", "Same five logs, <em>version 3</em>")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back one slide: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${retryRow()}${offlineNote()}`;
       const m2 = miniMean("v2"), m3 = miniMean("v3");
       return `${head("Round 1", "Same five logs, <em>version 3</em>", "", true)}
         <div class="scroll tablebox small" tabindex="0" aria-label="Version 2 against version 3 on the five logs"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", MINI)}</tbody></table></div>
@@ -953,7 +966,7 @@ const SCREENS = [
     role: () => "judge",
     effect: (st) => { needCand(); if (R.cand.v3) { ensure("v3", MINI, true); if (st >= 1) { ensure("v3", ids("val"), true); ensure("v2", ids("val"), true); } } },
     render: (st) => {
-      if (!R.cand.v3) return `${head("Round 1", "The Judge <em>decides</em>")}<div class="note warnnote">There is no version 3 yet. Go back two slides: the Coach writes it.</div>${offlineNote()}`;
+      if (!R.cand.v3) return `${head("Round 1", "The Judge <em>decides</em>")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back two slides: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${offlineNote()}`;
       const m2 = miniMean("v2"), m3 = miniMean("v3");
       const better = m2 !== null && m3 !== null && m3 > m2;
       const r1 = `<div class="row reveal"><span class="big">rule one</span><span class="arrow">&rarr;</span><span>the same five logs: v2 <b>${m2 === null ? "…" : f3(m2)}</b></span><span>v3 <b>${m3 === null ? "…" : f3(m3)}</b></span>
@@ -961,43 +974,43 @@ const SCREENS = [
       if (st === 0) return `${head("Round 1", "Rule one: did it <em>beat its parent</em>?", "", true)}${r1}${retryRow()}${offlineNote()}`;
       const v2v = splitMean("v2", "val"), v3v = splitMean("v3", "val");
       const done = v2v !== null && v3v !== null;
-      const winner = done ? (v3v > v2v ? "v3" : "v2") : null;
+      const winner = done ? (better && v3v > v2v ? "v3" : "v2") : null;
       return `${head("Round 1", "Rule two: logs it has <em>never seen</em>", "The ten validation logs. The Coach saw none of them.", true)}
         <div class="scroll tablebox small" tabindex="0" aria-label="Validation logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("val"))}</tbody></table></div>
         <div class="row reveal"><span class="big">validation</span><span class="arrow">&rarr;</span><span>v2 <b>${v2v === null ? "…" : f3(v2v)}</b></span><span>v3 <b>${v3v === null ? "…" : f3(v3v)}</b></span>${winner ? `<span class="ok">winner: ${winner === "v3" ? "version 3" : "version 2"}</span>` : ""}${costLine("v3", ids("val"))}</div>
-        ${done ? `<div class="note reveal">${better ? "" : "Rule one dropped version 3, and a dropped candidate stops here in a real loop. We checked it anyway so you can see. "}${winner === "v3" ? "Version 3 also wins on logs the Coach never saw, so the Judge keeps it." : "Version 3 does not beat version 2 on validation, so the Judge keeps version 2."}</div>` : ""}${retryRow()}${offlineNote()}`;
+        ${done ? `<div class="note reveal">${better ? "" : "Rule one dropped version 3, and a dropped candidate stops here in a real loop. We checked it anyway so you can see. "}${winner === "v3" ? "Version 3 also wins on logs the Coach never saw, so the Judge keeps it." : !better && v3v > v2v ? "Version 3 would have won on validation, but rule one dropped it, so the Judge keeps version 2." : "Version 3 does not beat version 2 on validation, so the Judge keeps version 2."}</div>` : ""}${retryRow()}${offlineNote()}`;
     },
   },
   {
     id: "test", title: "The test, once", tag: "live", live: true, steps: 1,
-    hints: [["wink", "Ten logs nobody has looked at."], ["focused", "One look. Then no changes."]],
-    notes: "The Teacher kept ten logs sealed: two pipelines the loop never saw. We open them once. Say plainly that the gain is mostly a format fix: the Coach found a real bug, but a format bug, and a parser that strips code fences would give a similar jump. Then say the rule out loud: if you change the prompt because of this number, it is not a clean test any more. The winner leaves as a file plus a diff for a person to review.",
+    hints: [["wink", "Ten logs held back. One look."], ["focused", "One look. Then no changes."]],
+    notes: "The Teacher kept ten logs sealed: two pipelines the loop never saw. We open them once. If the fence counts on screen show it, say plainly that the gain is mostly a format fix: the Coach found a real bug, but a format bug, and a parser that strips code fences would give a similar jump. Then say the rule out loud: if you change the prompt because of this number, it is not a clean test any more. The winner leaves as a file plus a diff for a person to review.",
     role: (st) => (st === 0 ? "teacher" : "judge"),
     effect: (st) => { needCand(); if (st >= 1 && R.cand.v3) { for (const v of ["v2", "v3"]) for (const set of [MINI, ids("val"), ids("test")]) ensure(v, set, true); } },
     render: (st) => {
-      if (st === 0) return `${head("The test", "Ten logs <em>nobody has looked at</em>", "Two pipelines, kafka-events and beam-telemetry. The Coach never saw them and the Judge never used them.", true)}
+      if (st === 0) return `${head("The test", "Ten logs <em>held back</em>", "Two pipelines, kafka-events and beam-telemetry. In round 1 the Coach never saw them and the Judge never used them.", true)}
         <div class="cluster">${ALL.filter((l) => l.split === "test").map(() => `<div class="card sealed"><h3>sealed</h3><p>?</p></div>`).join("")}</div>
         <div class="row" style="margin-top:12px"><button class="primary" data-act="next">Open the test split (once)</button></div>`;
-      if (!R.cand.v3) return `${head("The test", "The test, <em>once</em>")}<div class="note warnnote">There is no version 3 yet. Go back three slides: the Coach writes it.</div>${offlineNote()}`;
+      if (!R.cand.v3) return `${head("The test", "The test, <em>once</em>")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back three slides: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${offlineNote()}`;
       const t2 = splitMean("v2", "test"), t3 = splitMean("v3", "test"), v2v = splitMean("v2", "val"), v3v = splitMean("v3", "val");
       const fm = (x) => (x === null ? "…" : f3(x));
       const fenced = (v) => ids("test").filter((id) => R.act[v][id] && R.act[v][id].text.trim().startsWith("```")).length;
       const done = t2 !== null && t3 !== null;
-      return `${head("The test", "The number you <em>can quote</em>", "", true)}
+      return `${head("The test", "One look at the <em>test</em>", "", true)}
         <div class="scroll tablebox small" tabindex="0" aria-label="Test logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("test"))}</tbody></table></div>
         <div class="row reveal"><span>v2 · five <b>${fm(miniMean("v2"))}</b> · val <b>${fm(v2v)}</b> · test <b>${fm(t2)}</b></span><span class="arrow">&rarr;</span><span>v3 · five <b>${fm(miniMean("v3"))}</b> · val <b>${fm(v3v)}</b> · test <b>${fm(t3)}</b></span>${costLine("v3", ids("test"))}</div>
-        ${done ? `<div class="note warnnote reveal"><b>${t3 > t2 ? "Version 3 holds up on test." : t3 === t2 ? "Test shows no difference." : "Version 3 does worse on test than on validation."}</b> ${fenced("v2")} of 10 version 2 replies were code-fenced and failed the JSON gate, against ${fenced("v3")} of 10 for version 3: mostly a format fix. Ten logs per split is a toy. This test is now used up: change the prompt because of it and it is no longer clean.</div>` : ""}${retryRow()}${offlineNote()}`;
+        ${done ? `<div class="note warnnote reveal"><b>${t3 > t2 ? "Version 3 scores higher than version 2 on test." : t3 === t2 ? "Version 3 and version 2 score the same on test." : "Version 3 scores lower than version 2 on test."}</b> ${fenced("v2")} of 10 version 2 replies were code-fenced and failed the JSON gate, against ${fenced("v3")} of 10 for version 3. ${fenced("v2") > fenced("v3") ? "Most of the gain is a format fix." : "The fences do not explain the difference."} Ten logs per split is a toy. This test is now used up: change the prompt because of it and it is no longer clean.</div>` : ""}${retryRow()}${offlineNote()}`;
     },
   },
   {
     id: "loop", title: "Round after round", tag: "live", live: true, steps: 1,
-    hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["worried", "It passed by reading the test. That number is spent."]],
-    notes: "The loop from the last six slides, repeated, until one prompt passes all three gates on all 30 logs or five rounds are used. Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, the Grader marks them, and the Judge accepts the new prompt only if it passes more logs. Say the cost out loud: to pass all 30, the Coach has to read failures from every split, test included. So no log is left unseen, and the final score proves nothing new. To claim it you would hold out a fresh pipeline. Last step: the final prompt, as a diff against version 2.",
+    hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["worried", "The Coach read failures from every split. The test is spent."]],
+    notes: "The loop from the last six slides, repeated, until one prompt passes all three gates on all 30 logs or five rounds are used. Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, the Grader marks them, and the Judge accepts the new prompt only if it passes more logs. The Judge's rule changes here, because the goal is now 30 of 30. Say the cost out loud: to pass all 30, the Coach has to read failures from every split, test included. So no log is left unseen, and the final score proves nothing new. To claim it you would hold out a fresh pipeline. Last step: the final prompt, as a diff against version 2.",
     role: () => (R.loop && R.loop.running ? (R.loop.phase === "coach" ? "coach" : "student") : "judge"),
     effect: () => { needCand(); if (R.cand.v3) runLoop(); },
     render: (st) => {
       const L = R.loop, fm = (x) => (x === null || x === undefined ? "…" : f3(x));
-      if (!R.cand.v3) return `${head("Round after round", "Until all <em>30</em> pass")}<div class="note warnnote">There is no version 3 yet. Go back four slides: the Coach writes it.</div>${retryRow()}${offlineNote()}`;
+      if (!R.cand.v3) return `${head("Round after round", "Until all <em>30</em> pass")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back four slides: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${retryRow()}${offlineNote()}`;
       if (!L) return `${head("Round after round", "Until all <em>30</em> pass")}${retryRow()}${offlineNote()}<div class="note">${R.status === "live" ? spinner + "Starting the loop…" : "The loop needs the server."}</div>`;
       if (st === 0) {
         const rows = L.rounds.map((r, n) => `<tr class="reveal"><td class="num">${n + 1}</td><td class="num">${r.v}</td><td class="num">${r.parent}</td><td class="clip" title="${esc(r.lines.join(" / "))}">${esc(r.lines.join(" / ") || "no new line")}</td><td class="num">${fm(r.train)}</td><td class="num">${fm(r.val)}</td><td class="num">${fm(r.test)}</td><td class="num">${r.pass} / 30</td><td class="num" title="${r.cost.calls} calls, about $${r.cost.usd.toFixed(3)}">${fmtN(r.cost.tin)} / ${fmtN(r.cost.tout)}</td><td class="num" title="Sum of the ${r.cost.calls} call times. Four calls run at once, so the wall clock is about a quarter of this.">${fmtMs(r.cost.ms)}</td><td class="${r.status === "accepted" || r.status === "round 1" ? "ok" : "faint"}">${esc(r.status)}${L.final === r.v ? " · final" : ""}</td></tr>`).join("");
@@ -1006,7 +1019,7 @@ const SCREENS = [
         const cur = L.cur, doneActs = cur ? ALL.filter((l) => R.act[cur] && R.act[cur][l.id]).length : 0;
         const progress = L.running ? `<div class="loader" role="status"><span class="loader-art">${claudeLoader(48)}</span><span>${L.phase === "coach" ? `${esc(nice(R.coachModel) || "The Coach")} is rewriting the prompt…` : `Round ${L.n || 1}: the Student answers the 30 logs with ${esc(cur || "v3")} (${doneActs} of 30), then the Grader marks them`}</span></div>` : "";
         const end = L.state === "done" ? `<div class="note reveal"><b>${esc(L.stop)}</b> The Judge picks the prompt that passes the most: <b>${esc(L.final)}</b>.</div>` : "";
-        return `${head("Round after round", L.running ? "The loop <em>runs</em>" : "The loop <em>stopped</em>", "Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, and the Judge accepts it only if it passes more logs.", true)}
+        return `${head("Round after round", L.running ? "The loop <em>runs</em>" : "The loop <em>stopped</em>", "Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, and the Judge accepts it only if it passes more logs (a tie goes to the higher mean score).", true)}
           <div class="scroll tablebox small" tabindex="0" aria-label="Every round of the loop"><table class="compact"><thead><tr><th class="num">Round</th><th class="num">Prompt</th><th class="num">From</th><th>What the Coach added</th><th class="num">train</th><th class="num">val</th><th class="num">test</th><th class="num">Pass all gates</th><th class="num">Tokens in / out</th><th class="num">Model time</th><th>Judge</th></tr></thead><tbody>${rows}${total}</tbody></table></div>
           <p class="source mono">Model time adds up every call's time. Four calls run at once, so the clock on the wall is about a quarter of it.</p>
           ${progress}${end}${retryRow()}${offlineNote()}`;
@@ -1029,8 +1042,8 @@ const SCREENS = [
         ["Freeze the examples", "The right answer written next to each.", "thinking"],
         ["Split by source, not by row", "A whole pipeline stays on one side.", "curious"],
         ["Baseline first", "Score the current prompt the same way.", "neutral"],
-        ["Fix the bar up front", "How many logs, and how much difference counts.", "confused"],
-        ["Put every limit in the score", "Time, size and cost.", "worried"],
+        ["Decide what counts as better", "Before the run, not after it.", "confused"],
+        ["Score the format too", "Length and shape, not only the label.", "worried"],
         ["Record everything", "Model ids, tokens, time, every run.", "happy"],
         ["Code before wording", "A format is a rule to check, not a request.", "wink"],
         ["Look at test once", "And say so if you looked twice.", "surprised"],
@@ -1130,17 +1143,6 @@ function draw(motion) {
   n.hidden = !S.notes;
   n.textContent = sc.notes;
 }
-function animateTo(max) {
-  clearInterval(timer);
-  const id = SCREENS[S.i].id;
-  timer = setInterval(() => {
-    if (SCREENS[S.i].id !== id) { clearInterval(timer); return; }
-    const n = stepOf(id) + 1;
-    setStep(id, n); draw("step");
-    if (n >= max) clearInterval(timer);
-  }, 650);
-}
-
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.disabled) return;
@@ -1149,15 +1151,14 @@ document.addEventListener("click", (e) => {
   const id = SCREENS[S.i].id;
   if (act === "next") next();
   else if (act === "goto") { setStep(id, Number(arg)); draw("step"); }
-  else if (act === "run1") { setStep(id, 1); draw("step"); animateTo(4); }
-  else if (act === "retry") { R.err = {}; if (R.loop && R.loop.state === "error") R.loop = null; draw(); }
+  else if (act === "retry") { if (R.loop && R.loop.running) return; R.err = {}; if (R.loop && R.loop.state === "error") R.loop = null; draw(); }
   else if (act === "rerun") rerun(parts[1], parts[2], Number(parts[3]));
   else if (act === "row") { const key = parts.slice(1).join(":"); S.open.has(key) ? S.open.delete(key) : S.open.add(key); S.focusRow = key; draw(); }
   else if (act === "resetask") { R.confirmReset = true; draw(); }
   else if (act === "resetno") { R.confirmReset = false; draw(); }
   else if (act === "reset") startEmpty();
   else if (act === "warm") warmAll();
-  else if (act === "coachnow") runCoach(true);
+  else if (act === "coachnow") { if (!R.busy.size && !(R.loop && R.loop.running)) runCoach(true); }
 });
 $("prev").addEventListener("click", prev);
 $("next").addEventListener("click", next);

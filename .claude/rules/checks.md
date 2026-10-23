@@ -4,7 +4,7 @@ Run these in order. Report any you did not run, and never describe a planned che
 
 1. `python3 build.py` rebuilds `index.html` from `src/template.html`. Never edit `index.html` by hand.
 2. `node scripts/verify-numbers.js` must print "all numbers match". It checks the scoring gates, the parsing of the Coach's reply, the diff, and the shape of the data (nothing is mocked any more).
-3. `node scripts/smoke-render.js` must print "no render errors". It renders every step of every screen, and it
+3. `scripts/check-all.sh` runs steps 1 to 3 plus `scripts/test-server.mjs` (the server against a fake `claude`) and `scripts/test-loop.js` (the loop and every failure path against a stub server) and the design grep. Run it first. `node scripts/smoke-render.js` must print "no render errors". It renders every step of every screen, and it
    exists because one missing helper blanked a slide and nothing else noticed.
 4. Open the real server and step through every screen with **Next only**, then **Previous**. Use the Playwright MCP:
    `node server.mjs`, then `http://127.0.0.1:8787/?fresh=N#K`. Change `fresh` on every navigation: a URL that
