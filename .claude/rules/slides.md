@@ -33,6 +33,9 @@ One entrance for everything, so Next always feels the same. The contract lives i
 - **Previous, live results, Run now, row toggles, redraws** (`draw()` with no argument): no entrance. Going back is instant;
   a model result arriving does not replay the slide.
 - When a step makes the vertically centred slide taller, it glides to its new position over the same 320ms.
+- **No bounce.** `draw()` stops any running glide first, puts back whatever must outlive a redraw (the loop ring) and settles the layout, and only then measures where the slide
+  moved. Measuring earlier made the slide jump up and down by up to 180 px on every live result (found 24 Oct with a per-frame sampler, 196 jumps in one loop run, now 5 smooth glides).
+  Anything new that survives a redraw must be put back before the measurement, not in an `effect`.
 - The companion's line rises only when its text changes. Loaders and spinners are the only looping motion.
 - **Adding something new:** give new content the `reveal` class and call `draw("step")` from its Next handler. Never animate in `render()`,
   never time an animation by hand. Reduced motion switches all of it off (`prefers-reduced-motion`).

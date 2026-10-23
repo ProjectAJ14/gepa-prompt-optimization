@@ -1459,8 +1459,6 @@ const SCREENS = [
     role: () => (R.loop && R.loop.running ? null : "judge"), // while it runs, the ring shows who is at work
     effect: (st) => {
       needCand(); if (R.cand.v3) runLoop();
-      const slot = document.getElementById("ringslot");
-      if (st === 0 && slot && R.loop && R.loop.running) { const r = ringState(); attachRing(slot); setRing(r.active, r.caption); }
     },
     render: (st) => {
       const L = R.loop, fm = (x) => (x === null || x === undefined ? "…" : f3(x));
@@ -1537,15 +1535,23 @@ const MOTION = { ms: 320, ease: "cubic-bezier(.2,.6,.2,1)" }; // mirror --durati
 function draw(motion) {
   const sc = SCREENS[S.i], st = stepOf(sc.id);
   const slide = $("slide");
+  // A glide still running would be counted in the measurements below and stacked with the next one: that is the up-and-down bounce. Stop it first.
+  if (slide.getAnimations) slide.getAnimations().forEach((a) => a.cancel());
   const before = S.last === sc.id ? slide.getBoundingClientRect() : null;
   const NEW = ".reveal, pre.prompt .add";
   const seen = new Set(motion === "step" ? [...slide.querySelectorAll(NEW)].map((e) => e.outerHTML) : []);
   const tb = slide.querySelector(".tablebox"), tbTop = tb ? tb.scrollTop : 0; // live results redraw the slide; keep the reader's place in the table
   slide.innerHTML = sc.render(st);
   const tb2 = slide.querySelector(".tablebox"); if (tb2) tb2.scrollTop = tbTop;
+  // Put back what must outlive a redraw, and settle the layout, BEFORE measuring where the slide ended up. Measured later, the slide looks
+  // shorter than it is for a moment (the ring is not back yet) and the glide below starts from the wrong place.
+  const ringSlot = slide.querySelector("#ringslot");
+  if (ringSlot && R.loop && R.loop.running) { const r = ringState(); attachRing(ringSlot); setRing(r.active, r.caption); }
+  $("main").classList.toggle("tight", slide.offsetHeight + 24 + 120 > $("main").clientHeight);
   slide.querySelectorAll(NEW).forEach((e) => { if (motion !== "step" || seen.has(e.outerHTML)) e.classList.add("still"); });
   if (motion === "screen" && !reduced() && slide.animate) slide.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: MOTION.ms, easing: MOTION.ease });
-  // The slide is vertically centred, so adding content moves it. Glide it instead of jumping.
+  // The slide is vertically centred, so adding content moves it. Glide it instead of jumping. This is safe on live redraws too now that the
+  // measurement is taken after the layout has settled and no earlier glide is still running.
   if (before && !reduced() && slide.animate) {
     const dy = before.top - slide.getBoundingClientRect().top;
     if (Math.abs(dy) > 2) slide.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], { duration: MOTION.ms, easing: MOTION.ease });
@@ -1576,9 +1582,6 @@ function draw(motion) {
   if (sc.live && R.busy.size) hint = ["excited", `The model is working. ${R.busy.size} call${R.busy.size > 1 ? "s" : ""} left.`];
   const comp = $("companion");
   comp.hidden = !hint[1];
-  // A slide too tall to leave the companion's gap at the bottom drops that gap, so the page does not scroll for nothing. Judged on heights, so it cannot flip back and forth.
-  const mainEl = $("main");
-  mainEl.classList.toggle("tight", slide.offsetHeight + 24 + 120 > mainEl.clientHeight);
   const crowded = slide.getBoundingClientRect().bottom > innerHeight - 190;
   comp.className = "companion" + (crowded ? " crowded" : "");
   const art = sc.live && R.busy.size ? claudeLoader(64) : EklavyaMascot.svg({ expression: hint[0], variant: "face", size: 56 });
