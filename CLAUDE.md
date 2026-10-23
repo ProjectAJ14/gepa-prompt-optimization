@@ -1,6 +1,6 @@
 # Working on the GEPA prompt-optimization walkthrough
 
-A single-file, offline walkthrough the speaker presents instead of slides, for the talk
+A walkthrough the speaker presents instead of slides (one HTML file, plus a small local server for the live model calls), for the talk
 **"Data Engineering for Prompt Optimization"** at NonStop io's Luma event "Data Engineering for the
 Agentic AI Era" (Pune). It teaches how to set up the pipeline around a prompt optimizer (GEPA) and what to
 check before believing its results. Read `docs/decisions.md` for what was decided and why, and what is open.
@@ -12,25 +12,47 @@ check before believing its results. Read `docs/decisions.md` for what was decide
 | `src/template.html` | **The source.** Markup, styles, all screens, mocked data and scoring. Has three placeholders. |
 | `build.py` | Fills the placeholders with Eklavya's tokens and mascot and writes `index.html` |
 | `index.html` | Built output, committed so it opens with no build step. Never edit it by hand |
-| `scripts/verify-numbers.js` | Recomputes every displayed score and compares it with the story |
+| `server.mjs` | Local server: serves the page and runs the live model calls through `claude -p`, with a cache and a replay mode |
+| `scripts/verify-numbers.js` | Recomputes every **mocked** score and compares it with the story |
+| `scripts/smoke-render.js` | Renders every step of every screen in a fake DOM and reports any that throw |
+| `.claude/rules/` | The speaker's standing requirements, one file per area: `slides.md`, `live-model-calls.md`, `checks.md` |
+| `src/claude-loader.svg` | The loading critter shown while a model call runs; `build.py` inlines it. Replace the file to change it |
+| `src/nonstop-logo.svg` | The logo in the header's top right, on every screen. `build.py` embeds it as a data URI |
 | `src/CLAUDE.md` | How the template is structured and how to add a screen |
-| `docs/decisions.md` | Decisions, verified facts with their sources, and open items |
+| `docs/decisions.md` | Decisions, what the live runs showed, verified facts with their sources, and open items |
+| `.cache/llm.json` | Recorded model calls (git-ignored). Lets `--replay` present with no model calls |
+
+## Standing rules
+
+The speaker's requirements are written down in `.claude/rules/`, so they apply to anything added later without
+being repeated. Read the file for the area you are touching, and **when the speaker states a new standing
+preference, add it to the matching rule file in the same change.**
+
+- `slides.md`: stepping, centred layout, density, the mascot companion, the look, words, footer tags.
+- `live-model-calls.md`: how every model call is made, what it must show (prompt, output box, grader verdict and
+  reason, date and time, **Run now**), expandable rows, honesty, recording and replay.
+- `checks.md`: the checks to run, and the short list for adding a screen or a call.
 
 ## Commands
 
 ```bash
-python3 build.py                              # rebuild index.html (--eklavya <path> if the checkout moved)
-node scripts/verify-numbers.js                # must print "all numbers match"
-open index.html                               # the presenter opens the file directly
+python3 build.py                              # rebuild index.html (--eklavya <path> if the design-token checkout moved)
+node scripts/verify-numbers.js                # mocked numbers must print "all numbers match"
+node server.mjs                               # live: serves http://127.0.0.1:8787 and makes real model calls
+node server.mjs --replay                      # stage-safe: answers only from .cache/llm.json, never calls a model
+open index.html                               # works for every screen except the live ones, which say so
 ```
 
 ## Rules
 
 1. **Edit `src/template.html`, then rebuild.** A hand edit to `index.html` is lost on the next build.
-2. **Honesty about data.** Everything on the toy screens is invented and mocked, and carries the
-   "Example data" tag. Real numbers appear only on the "Real data" screen and come from Eklavya's dated
-   result files, cited in `docs/decisions.md`. Never present a mocked number as a finding, and never
-   write a claim the sources do not support. GEPA facts come from its README, with the date read.
+2. **Honesty about data.** Screens tagged **Live run** show real model replies: Haiku 4.5 acts (runs the
+   prompt) and Haiku 5.5 grades, both through `claude -p`. Never replace a live result with an invented one,
+   and never hide a failure: if the server is not running, the screen says so. Screens tagged **Example data**
+   are still mocked and are being replaced with live runs phase by phase (see `docs/decisions.md`); never
+   present a mocked number as a finding. GEPA facts come from its README, with the date read. Every live call
+   shows its input prompt, its full output in a fixed-size read-only box, the grader's verdict and reason, when
+   it happened, and a **Run now** button (`.claude/rules/live-model-calls.md`).
 3. **Interaction model.** Every screen is a list of steps: Next adds one thing, Previous takes it back.
    Nothing should appear all at once. Prompts grow: new text is appended and highlighted, never shown whole.
 4. **Layout.** Slides are centred and sparse content stays centred as more arrives. No page-level
@@ -42,19 +64,26 @@ open index.html                               # the presenter opens the file dir
    Check with: `grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(|--vd-' src/template.html` (only prose may match).
 6. **The mascot is a companion, not decoration.** Archer Cloak, a small face with one short line per step,
    the right expression for the moment, professional but light. Never jokes, never on every line of text.
-   Full body only on the title. Expressions are the ones in `eklavya/web/public/brand/mascot/mascot.js`.
+   No mascot on the title screen. Expressions are the ones in `eklavya/web/public/brand/mascot/mascot.js`.
 7. **Voice.** Direct and concrete, numbers over adjectives, "you". The speaker's other listed talk is
    "Building Data Platforms Agents Can Trust": do not use "trust", "reliable", "high-quality data",
    "context" or "governed" as framing words in titles, abstracts or slide headlines.
-8. **No network except web fonts.** The page must work offline on stage.
+8. **Network.** The page talks only to its own local server (`/api/...`) and loads web fonts. Live calls need
+   `node server.mjs` and a working `claude` login, so before a talk run the screens once to fill the cache
+   and present with `--replay`. The server binds to 127.0.0.1, checks the Host header, needs a custom header
+   on every POST, and runs the model with no tools, no hooks, no MCP servers and no saved session.
+9. **No product or project names on slides** other than the subject (GEPA, the models). The one brand mark in the page
+   chrome is NonStop io's logo, top right. The small mascot companion and the design tokens stay as the look.
 
 ## Required checks before calling a change done
 
-1. `python3 build.py && node scripts/verify-numbers.js`.
+1. `python3 build.py && node scripts/verify-numbers.js && node scripts/smoke-render.js`. The full list, including
+   the browser steps, is in `.claude/rules/checks.md`.
 2. Open it in a browser and step through every screen with Next only, then Previous. Use the Playwright
-   MCP: serve with `python3 -m http.server 8765 --bind 127.0.0.1` from the repo root, navigate to
-   `http://127.0.0.1:8765/index.html?fresh=N#K` (a same-URL navigation that changes only the hash does not
-   reload, so the old code keeps running: always change `fresh`), and stop the server afterwards.
+   MCP against the real server: `node server.mjs` and navigate to `http://127.0.0.1:8787/?fresh=N#K`
+   (a same-URL navigation that changes only the hash does not reload, so the old code keeps running:
+   always change `fresh`). Use `--replay` for repeatable runs, and stop the server afterwards.
+   A static `python3 -m http.server` is enough only for the screens that make no model call.
 3. Check 1280×800 and 560×900: no page overflow (`document.documentElement.scrollWidth > innerWidth`),
    and note which steps scroll (`main.scrollHeight > main.clientHeight`). Take screenshots with no
    filename (Playwright limits where it may write).
@@ -62,8 +91,9 @@ open index.html                               # the presenter opens the file dir
 
 ## Git
 
-Conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). Commit only when asked. There is no remote;
-do not push. End commit messages with the attribution line the session gives you.
+Conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). **Standing instruction from the speaker (23 Oct): keep committing
+as work lands, and update the docs, `CLAUDE.md` and `.claude/rules/` in the same change.** Commit each finished change with
+the checks passing; code and its docs go together. There is no remote; do not push. End commit messages with the attribution line the session gives you.
 
 ## Communicating with the speaker
 
