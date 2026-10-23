@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: GEPA itself
+    url: https://github.com/gepa-ai/gepa
+    about: Questions about the GEPA optimizer belong in its own repository.

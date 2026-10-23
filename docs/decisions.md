@@ -7,7 +7,7 @@ First written 23 Oct 2026; updated the same day when the screens moved from mock
 - **Title (chosen):** Data Engineering for Prompt Optimization.
 - **Event:** "Data Engineering for the Agentic AI Era", hosted by NonStop io at its Kharadi office in Pune.
   The Luma page (read 19 Oct 2026) states no date, slot length, format or call for speakers.
-- **Another listed talk:** Shivam Arya, "Building Data Platforms Agents Can Trust". Do not reuse his
+- **Another listed talk:** "Building Data Platforms Agents Can Trust", by another speaker. Do not reuse its
   framing words (see `CLAUDE.md`, rule 7). Ours is one concrete case; his is the broad principle.
 - **Abstract as drafted** (the speaker submitted a version; confirm the exact text before quoting it):
   > Most prompts get edited by feel: someone reads a bad output, changes a sentence and hopes. GEPA is an

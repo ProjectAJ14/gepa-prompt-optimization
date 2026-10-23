@@ -13,6 +13,8 @@ check before believing its results. Read `docs/decisions.md` for what was decide
 | `build.py` | Fills the placeholders with Eklavya's tokens and mascot and writes `index.html` |
 | `index.html` | Built output, committed so it opens with no build step. Never edit it by hand |
 | `server.mjs` | Local server: serves the page and runs the live model calls through `claude -p`, with a cache and a replay mode |
+| `recordings/llm.json` | One recorded run (464 calls) shipped for `--replay`: a fresh clone replays it with no account and no cost |
+| `.github/` | CI, Dependabot, issue and pull request templates. `README.md`, `LICENSE`, `CONTRIBUTING.md`, `SECURITY.md` and `CODE_OF_CONDUCT.md` are the public-facing files |
 | `scripts/check-all.sh` | Runs every automated check in order: build, `verify-numbers.js`, `smoke-render.js`, `test-server.mjs`, `test-loop.js`, the design grep |
 | `scripts/test-server.mjs` | Tests `server.mjs` against a fake `claude`: validation, cache, replay, reset, failures, no leaked slots. No model is called |
 | `scripts/test-loop.js` | Drives the page's loop code in a fake DOM against a stub server: the happy path, every failure path, Retry |
@@ -96,7 +98,7 @@ open index.html                               # works for every screen except th
 
 Conventional commits (`feat:`, `fix:`, `docs:`, `chore:`). **Standing instruction from the speaker (23 Oct): keep committing
 as work lands, and update the docs, `CLAUDE.md` and `.claude/rules/` in the same change.** Commit each finished change with
-the checks passing; code and its docs go together. There is no remote; do not push. End commit messages with the attribution line the session gives you.
+the checks passing; code and its docs go together. The public remote is https://github.com/ProjectAJ14/gepa-prompt-optimization (`origin`); push only when the speaker asks. CI runs `scripts/check-all.sh` and checks that the committed `index.html` is what the build produces. End commit messages with the attribution line the session gives you.
 
 ## Communicating with the speaker
 

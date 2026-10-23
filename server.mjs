@@ -40,7 +40,11 @@ const MAX_BODY = 32 * 1024;
 const MAX_TEXT = 6000;
 
 /* ---------- cache: one JSON file, written atomically ---------- */
-const CACHE_DIR = process.env.CACHE_DIR ? path.resolve(process.env.CACHE_DIR) : path.join(ROOT, ".cache");
+// Where recordings live. `.cache` is yours (git-ignored). A fresh clone has none, so `--replay` falls back to the recordings shipped in `recordings/`.
+const BUNDLED = path.join(ROOT, "recordings");
+const CACHE_DIR = process.env.CACHE_DIR ? path.resolve(process.env.CACHE_DIR)
+  : REPLAY && !fs.existsSync(path.join(ROOT, ".cache", "llm.json")) && fs.existsSync(path.join(BUNDLED, "llm.json")) ? BUNDLED
+  : path.join(ROOT, ".cache");
 const CACHE_FILE = path.join(CACHE_DIR, "llm.json");
 let cache = {};
 if (fs.existsSync(CACHE_FILE)) {

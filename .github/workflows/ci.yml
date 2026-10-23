@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      # The design tokens and the mascot come from the Eklavya repository (MIT). build.py inlines them into index.html.
+      - uses: actions/checkout@v4
+        with:
+          repository: ProjectAJ14/eklavya
+          path: eklavya
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build, check the numbers, render every step, run the server and loop tests
+        run: EKLAVYA_DIR="$PWD/eklavya" scripts/check-all.sh
+      - name: The committed index.html must be what the build produces
+        run: git diff --exit-code -- index.html
