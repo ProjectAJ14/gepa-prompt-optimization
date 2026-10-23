@@ -408,7 +408,7 @@ const STICK = {
 const stickInner = (kind) => `<circle cx="40" cy="26" r="14" fill="var(--panel)"/><path d="M40 40v46M40 52l-18 18M40 52l20 14M40 86l-14 46M40 86l14 46"/><circle cx="35" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><circle cx="45" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><path d="M34 31q6 5 12 0" stroke-width="2"/>${STICK[kind]}`;
 const stick = (kind) => `<svg class="stick" viewBox="0 0 84 140" role="img" aria-label="${kind}">${stickInner(kind)}</svg>`;
 
-const SAMPLE = [11, 2, 6, 22];
+const SAMPLE = [11, 2, 6, 3]; // four train and validation logs: no test log is shown before the test slide
 const splitPill = (s) => `<span class="pill ${s}">${s}</span>`;
 const head = (eyebrow, title, lede, dense) => `<div class="head${dense ? " dense" : ""}"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${lede ? `<p class="lede">${lede}</p>` : ""}</div>`;
 const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
@@ -1080,7 +1080,7 @@ const SCREENS = [
   },
   {
     id: "loop", title: "Round after round", tag: "live", live: true, steps: 1,
-    hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["thinking", "This is the prompt we keep. Green is what the Coach added."]],
+    hints: [["excited", "Round after round, until all 30 pass or five rounds are used."], ["thinking", "This is the prompt we keep. Green is what the Coach added."]],
     notes: "The loop from the last six slides, repeated, until one prompt passes all three gates on all 30 logs or five rounds are used. Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, the Grader marks them, and the Judge accepts the new prompt only if it passes more logs. The Judge's rule changes here, because the goal is now 30 of 30. Say the cost out loud: to pass all 30, the Coach has to read failures from every split, test included. So no log is left unseen, and the final score proves nothing new. To claim it you would hold out a fresh pipeline. Last step: the final prompt, as a diff against version 2.",
     role: () => (R.loop && R.loop.running ? null : "judge"), // while it runs, the ring shows who is at work
     effect: (st) => {

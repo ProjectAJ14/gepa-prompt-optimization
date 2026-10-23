@@ -40,7 +40,7 @@ First written 23 Oct 2026; updated the same day when the screens moved from mock
 | How calls run | `server.mjs` (Node, no dependencies) serves the page and runs `claude -p` with no tools, hooks, MCP servers or saved session, from a temp directory. Answers are cached in `.cache/llm.json`; `--replay` presents from the cache only. |
 | Run view | A 2×2 grid of the four sample runs, all visible at once (speaker's call, 23 Oct; replaced one-log-at-a-time tabs). Each cell has its own exact prompt and the model's full output side by side in fixed-size read-only boxes, its time, and Run now. |
 | Expandable score rows | Click a row to see the prompt, the full reply, how the score was worked out, and the judge's verdict with its reason. Test-split rows stay closed. |
-| Tokens and time on every call (23 Oct) | Speaker's call: every call shows its duration and its tokens, and every group of calls shows the sums. `metaLine()` carries both on each call; the score screen, the Judge, the test and the loop rows end with `costLine()`; slide 13's table has Tokens in / out and Model time per round plus a total row. "Model time" is the sum of call times (four run at once), not the wall clock; the page says so. Tokens come from `claude -p`'s own usage figures; "in" adds fresh, cached and cache-written input. Cost in dollars is in the hover text, not in a column. |
+| Tokens and time on every call (23 Oct) | Speaker's call: every call shows its duration and its tokens, and every group of calls shows the sums. `metaLine()` carries both on each call; the score screen, the Judge, the test and the loop rows end with `costLine()`; slide 12's table has Tokens in / out and Model time per round plus a total row. "Model time" is the sum of call times (four run at once), not the wall clock; the page says so. Tokens come from `claude -p`'s own usage figures; "in" adds fresh, cached and cache-written input. Cost in dollars is in the hover text, not in a column. |
 | Every call is dated | Each call shows its model, local date and time, and duration, and "recorded" when it came from the cache. |
 | Run now | Every call has a one-click re-run that ignores the recording; a graded call also has "Run judge now". Disabled in replay mode and when offline. |
 | Standing rules | The speaker's requirements live in `.claude/rules/` (slides, live model calls, checks) so later additions follow them. |
@@ -84,7 +84,7 @@ These are real, but one run each: replies vary, and the cache pins what the spea
 - The judge marked log 2 (a sensor timing out waiting for a file) as the wrong idea for version 1, which is an
   arguable call: it is a place where the grader and the gates, or two graders, could disagree.
 
-## What the first full round showed (23 Oct 2026; Haiku 4.5 Student, Haiku 5.5 Grader, Sonnet 5.5 Coach; one run, recorded)
+## What the first full round showed (recorded 23 to 24 Oct 2026; Haiku 4.5 Student, Haiku 5.5 Grader, Sonnet 5.5 Coach; one run)
 
 Real, one run each, pinned by the cache. Re-run before quoting.
 
@@ -101,7 +101,7 @@ Real, one run each, pinned by the cache. Re-run before quoting.
 
 ## The pre-talk review (24 Oct 2026)
 
-Three independent reviewers (server, slides 7 to 14 runtime, all content and rules) and a Playwright pass over the whole deck. What was found and fixed:
+Three independent reviewers (server, slides 7 to 13 runtime, all content and rules) and a Playwright pass over the whole deck. What was found and fixed:
 
 - **Loop (blockers, reproduced):** an errored loop restarted itself on every redraw (150 Coach calls in 1.5 s in a stub); Retry while the loop ran left it stuck on "running"; an unusable Coach reply was cached by the server and replayed forever on Retry. Fixed: an errored loop waits for Retry, the loop is wrapped so any throw becomes a visible error, Retry is ignored while it runs, an unusable reply is re-asked with `fresh`. Also: Coach input kept under the route's 12000-character limit, new prompts over 3500 characters refused, empty actor replies handled, Run now on the Coach and Start from empty ignored while calls run.
 - **Server:** a grader or actor that answers with nothing is now a 502, never a recorded verdict; invalid or non-object JSON is a 400; a `null` from the CLI no longer crashes the server; a corrupt `llm.json` is kept as `llm.corrupt-*.json` instead of being overwritten (and replay refuses to start on it); a call that finishes after a reset cannot write into the emptied cache; identical calls in flight share one model call; Ctrl+C saves the last recording and stops child processes; replay misses name the call; grade replies up to 20000 characters.
