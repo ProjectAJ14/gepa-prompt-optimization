@@ -68,9 +68,9 @@ split) stay closed.
 - Never replace a live result with an invented one, and never hide a failure. A failed call shows its error and a Retry
   button; nothing is retried silently. If the server is not running, the slide says so.
 - Nothing is mocked. If a mocked number is ever added, it keeps the **Example data** tag and is never mixed into a sentence about a live one.
-- **Screens 7 to 12 are GEPA's loop run by hand, one round.** Say so on screen; it is not the `gepa` package. Each role on screen is a real
+- **Screens 7 to 11 are GEPA's loop run by hand, one round.** Say so on screen; it is not the `gepa` package. Each role on screen is a real
   actor: Teacher = the logs, Student = the actor, Grader = gates plus the judge's note, Coach = `/api/coach`, Judge = a rule in code.
-- **Slide 13 repeats the loop** (`runLoop()`): up to five rounds, each candidate run on all 30 logs, stop at 30 of 30. It starts on arrival, is deterministic when cached, and is part of Warm-up. The Coach reads failures from every split there, which spends the test split; the slide must keep saying so.
+- **Slide 12 repeats the loop** (`runLoop()`): up to five rounds, each candidate run on all 30 logs, stop at 30 of 30. It starts on arrival, is deterministic when cached, and is part of Warm-up. The Coach reads failures from every split there, which spends the test split; the slide must keep saying so.
 - The Coach's input is built by the page (`coachPrompt()`), so the slide shows the exact text sent. Its reply must contain a `<prompt>` with
   `{{log}}` exactly once (`parseCoach`), or the screen shows the error and a Retry. Test split calls run only when the Teacher's seal is opened.
 - Captions that describe results are computed from the data (`scoreNote`, the v2 note), never typed as if the outcome

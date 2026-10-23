@@ -1182,10 +1182,10 @@ const SCREENS = [
     },
   },
   {
-    id: "gepa-loop", title: "How GEPA works", tag: "ref", steps: 5,
+    id: "gepa-loop", title: "How GEPA works", tag: "ref", steps: 6,
     hints: [["curious", "The Teacher hands out your examples."], ["focused", "The Student tries the current prompt."], ["thinking", "The Grader says how it did, and why."],
-      ["happy", "The Coach rewrites the prompt."], ["focused", "The Judge keeps it only if it improved."], ["excited", "Round again, until the budget runs out. Then the best candidate."]],
-    notes: "A team with one job each. Teacher: your examples. Student: runs the prompt and writes down its steps. Grader: your metric, a score plus the reason. Coach: reads the mistakes and the feedback and rewrites the prompt. Judge: keeps the new prompt only if it improved, and keeps a pool of candidates that are good at different things. Then repeat until the call budget runs out. Say clearly: these are characters for teaching, not GEPA's own terms. The \"Who\" line on each card says what the character is in real life. Source: the GEPA README.",
+      ["happy", "The Coach rewrites the prompt."], ["focused", "The Judge keeps it only if it improved."], ["excited", "Round again, until the budget runs out. Then the best candidate."], ["wink", "Now the team gets real names."]],
+    notes: "A team with one job each. Teacher: your examples. Student: runs the prompt and writes down its steps. Grader: your metric, a score plus the reason. Coach: reads the mistakes and the feedback and rewrites the prompt. Judge: keeps the new prompt only if it improved, and keeps a pool of candidates that are good at different things. Then repeat until the call budget runs out. Say clearly: these are characters for teaching, not GEPA's own terms. The \"Who\" line on each card says what the character is in real life. Source: the GEPA README. Last step: the same five characters with the real models and data we use in the rest of the talk. Teacher: you, with 30 logs split 10, 10, 10. Student: Haiku 4.5 running prompt version 2, the seed candidate. Grader: three checks in code plus a note from Haiku 5.5. Coach: Sonnet 5.5. Judge: a rule in code. Say clearly that what follows is GEPA's loop done by hand with real model calls; it is not the gepa package.",
     render: (st) => {
       const cast = [
         ["teacher", "Teacher", "Hands out the practice questions", "That is you. You bring the examples and the right answers."],
@@ -1194,6 +1194,20 @@ const SCREENS = [
         ["coach", "Coach", "Reads the mistakes and rewrites the prompt", "A second AI model. It reads the Student's working and the Grader's notes."],
         ["judge", "Judge", "Keeps the new prompt only if it did better", "Not a person or a model: the rule for which prompts stay on the shelf."],
       ];
+      // The last step gives the same five characters their real names in this talk.
+      const real = [
+        ["teacher", "Teacher", "You", "30 logs with the right answers: 10 to learn from (train), 10 to choose with (validation), 10 held back (test)."],
+        ["student", "Student", nice(R.actor) || "Claude Haiku 4.5", "Runs prompt version 2, the one we start from. In GEPA's words, the seed candidate."],
+        ["grader", "Grader", "Three checks in code, plus " + (nice(R.grader) || "Claude Haiku 5.5"), "Is it JSON? Is the label allowed? Is it right? Then a note on whether the idea was right, and why."],
+        ["coach", "Coach", nice(R.coachModel) || "Claude Sonnet 5.5", "Reads the failures and the Grader's notes, then rewrites the prompt. In round 1 it never sees validation or test."],
+        ["judge", "Judge", "A rule in code", "Keeps the new prompt only if it did better. Picks by validation score. Opens test once. In the final loop the rule changes: the goal is 30 of 30."],
+      ];
+      if (st >= 6) {
+        const realMember = (m) => `<div class="member reveal">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${esc(m[2])}</p><p class="gterm"><span>Does</span>${esc(m[3])}</p></div>`;
+        return `${head("In this talk", "The team gets <em>real names</em>", "", true)}
+          <div class="cast">${real.map(realMember).join("")}</div>
+          <div class="note warnnote reveal"><b>What is real, and what is simplified.</b> Every model call and every score on the next slides is real. The loop is GEPA's, run by hand for one round, so you can see each role at work. It is not the <code>gepa</code> package: that runs many rounds and keeps a pool of candidates that each do well on different examples. We have two candidates, so the Judge simply compares them.</div>`;
+      }
       const shown = cast.slice(0, Math.min(st + 1, 5));
       const member = (m, k) => `<div class="member reveal${k === Math.min(st, 4) && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${m[2]}</p><p class="gterm"><span>Who</span>${m[3]}</p></div>`;
       const lede = ["", "", "", "", "", ""][st];
@@ -1248,26 +1262,6 @@ const SCREENS = [
       ${v ? `<p class="source mono">Click a row: the prompt, the reply, the score and the judge's reasoning</p>` : ""}
       ${means}${retryRow()}${st >= 3 ? offlineNote() : ""}
       <div class="note reveal">${note}</div>`;
-    },
-  },
-  {
-    id: "cast", title: "Who plays whom", tag: null, steps: 5,
-    hints: [["curious", "The Teacher is you."], ["focused", "The Student is a real model."], ["thinking", "The Grader is code, plus a second opinion."],
-      ["happy", "The Coach is a third model."], ["focused", "The Judge is a rule in code."], ["wink", "One round, by hand, with real models."]],
-    notes: "Now the team from the last slide gets real names. Teacher: you, with the 30 logs split 10, 10, 10. Student: Haiku 4.5 running prompt version 2, which is the seed candidate. Grader: three checks in code plus a note from Haiku 5.5. Coach: a third model that reads the failures and rewrites the prompt. Judge: a rule in code. Be clear on the last step: this is GEPA's loop done by hand, one round, with real model calls. It is not the gepa package.",
-    role: (st) => ["teacher", "student", "grader", "coach", "judge", null][st],
-    render: (st) => {
-      const cast = [
-        ["teacher", "Teacher", "You", "30 logs with the right answers: 10 to learn from (train), 10 to choose with (validation), 10 kept sealed (test)."],
-        ["student", "Student", nice(R.actor) || "Claude Haiku 4.5", "Runs prompt version 2, the one we start from. In GEPA's words, the seed candidate."],
-        ["grader", "Grader", "Three checks in code, plus " + (nice(R.grader) || "Claude Haiku 5.5"), "Is it JSON? Is the label allowed? Is it right? Then a note on whether the idea was right, and why."],
-        ["coach", "Coach", nice(R.coachModel) || "Claude Sonnet 5.5", "Reads the failures and the Grader's notes, then rewrites the prompt. In this round it never sees validation or test."],
-        ["judge", "Judge", "A rule in code", "Keeps the new prompt only if its score improved. Picks by validation score. Opens test once. On slide 13 the rule changes: the goal is 30 of 30."],
-      ];
-      const member = (m, k) => `<div class="member reveal${k === st && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${esc(m[2])}</p><p class="gterm"><span>Does</span>${esc(m[3])}</p></div>`;
-      const honest = st >= 5 ? `<div class="note warnnote reveal"><b>What is real, and what is simplified.</b> Every model call and every score on the next slides is real. The loop is GEPA's, run by hand for one round, so you can see each role at work. It is not the <code>gepa</code> package: that runs many rounds and keeps a pool of candidates that each do well on different examples. We have two candidates, so the Judge simply compares them.</div>` : "";
-      return `${head("Round 1", st >= 5 ? "One round, <em>by hand</em>" : "The team gets <em>real names</em>", "", true)}
-        <div class="cast">${cast.slice(0, Math.min(st + 1, 5)).map(member).join("")}</div>${honest}`;
     },
   },
   {

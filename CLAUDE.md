@@ -51,7 +51,7 @@ open index.html                               # works for every screen except th
 1. **Edit `src/template.html`, then rebuild.** A hand edit to `index.html` is lost on the next build.
 2. **Honesty about data.** Screens tagged **Live run** show real model replies: Haiku 4.5 acts (the Student),
    Haiku 5.5 grades, Sonnet 5.5 coaches, all through `claude -p`. Never replace a live result with an invented one,
-   and never hide a failure: if the server is not running, the screen says so. Nothing is mocked now (screens 7 to 12
+   and never hide a failure: if the server is not running, the screen says so. Nothing is mocked now (screens 7 to 11
    run one round of GEPA's loop by hand, and say so: it is not the `gepa` package). If a mocked number is ever added back,
    it carries the **Example data** tag and never appears as a finding. GEPA facts come from its README, with the date read. Every live call
    shows its input prompt, its full output in a fixed-size read-only box, the grader's verdict and reason, when

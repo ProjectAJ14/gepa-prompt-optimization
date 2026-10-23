@@ -63,7 +63,6 @@ check("the five-log minibatch has one log per label", (() => { const ids = [1, 2
 const roleAt = (id, st) => { const sc = SCREENS.find((x) => x.id === id); const r = typeof sc.role === "function" ? sc.role(st) : sc.role; return [].concat(r || []).filter(Boolean).join("+") || "-"; };
 const ROLES = {
   score: ["teacher", "teacher", "teacher", "student+grader", "student+grader"],
-  cast: ["teacher", "student", "grader", "coach", "judge", "-"],
   "student-grader": ["teacher", "student", "grader", "grader"],
   coach: ["coach", "coach", "coach"],
   retry: ["student+grader", "grader"],
