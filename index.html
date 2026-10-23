@@ -497,7 +497,8 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .member .stick { height: clamp(84px, 12vh, 140px); }
   .member h3 { margin: 4px 0 0; }
   .member .job { color: var(--ink); font-size: 0.88em; margin: 0; }
-  .member .gterm { color: var(--faint); font-family: var(--font-mono); font-size: 0.68em; margin: 4px 0 0; padding-top: 8px; border-top: 1px solid var(--line-2); width: 100%; }
+  .member .gterm { color: var(--dim); font-size: 0.82em; margin: 4px 0 0; padding-top: 8px; border-top: 1px solid var(--line-2); width: 100%; }
+  .member .gterm span { display: block; font-family: var(--font-mono); font-size: 0.8em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--spot); margin-bottom: 2px; }
   .loopback { position: relative; height: 28px; margin: 0 8%; border: 2px solid var(--spot); border-top: 0; text-align: center; }
   .loopback .chip { position: relative; top: 14px; background: var(--bg); margin: 0; }
   /* Motion contract (.claude/rules/slides.md): one entrance, `rise`. Only what is new animates; `still` marks what was already there. */
@@ -1094,24 +1095,24 @@ const SCREENS = [
     id: "gepa-loop", title: "How GEPA works", tag: "ref", steps: 6,
     hints: [["curious", "The Teacher hands out your examples."], ["focused", "The Student tries the current prompt."], ["thinking", "The Grader says how it did, and why."],
       ["happy", "The Coach rewrites the prompt."], ["focused", "The Judge keeps it only if it improved."], ["excited", "Then it goes round again."], ["happy", "The best candidate comes out."]],
-    notes: "A team with one job each. Teacher: your examples. Student: runs the prompt and writes down its steps. Grader: your metric, a score plus the reason. Coach: reads the mistakes and the feedback and rewrites the prompt. Judge: keeps the new prompt only if it improved, and keeps a pool of candidates that are good at different things. Then repeat until the call budget runs out. Say clearly: these are characters for teaching, not GEPA's own terms. The third line on each card says what the character is in GEPA. Source: the GEPA README.",
+    notes: "A team with one job each. Teacher: your examples. Student: runs the prompt and writes down its steps. Grader: your metric, a score plus the reason. Coach: reads the mistakes and the feedback and rewrites the prompt. Judge: keeps the new prompt only if it improved, and keeps a pool of candidates that are good at different things. Then repeat until the call budget runs out. Say clearly: these are characters for teaching, not GEPA's own terms. The \"Who\" line on each card says what the character is in real life. Source: the GEPA README.",
     render: (st) => {
       const cast = [
-        ["teacher", "Teacher", "Hands out examples", "your train and validation sets"],
-        ["student", "Student", "Tries the current prompt, writes down its steps", "the task model, and its traces"],
-        ["grader", "Grader", "Gives a score and says why", "your metric: a score plus feedback text"],
-        ["coach", "Coach", "Reads the mistakes, rewrites the prompt", "the reflection model"],
-        ["judge", "Judge", "Keeps the new prompt only if it improved", "the pool of candidates, the Pareto frontier"],
+        ["teacher", "Teacher", "Hands out the practice questions", "That is you. You bring the examples and the right answers."],
+        ["student", "Student", "Answers with the current prompt and shows its working", "The AI model that follows your prompt."],
+        ["grader", "Grader", "Marks the answer and writes down why it is wrong", "The check you write: a score and a reason."],
+        ["coach", "Coach", "Reads the mistakes and rewrites the prompt", "A second AI model. It reads the Student's working and the Grader's notes."],
+        ["judge", "Judge", "Keeps the new prompt only if it did better", "Not a person or a model: the rule for which prompts stay on the shelf."],
       ];
       const shown = cast.slice(0, Math.min(st + 1, 5));
-      const member = (m, k) => `<div class="member reveal${k === Math.min(st, 4) && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${m[2]}</p><p class="gterm">in GEPA: ${m[3]}</p></div>`;
+      const member = (m, k) => `<div class="member reveal${k === Math.min(st, 4) && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${m[2]}</p><p class="gterm"><span>Who</span>${m[3]}</p></div>`;
       const lede = ["", "", "", "", "", "Round after round, the pool grows with candidates that each do well on different examples.", ""][st];
       const loopback = st >= 5 ? `<div class="loopback reveal"><span class="chip">repeat until the budget (max_metric_calls) runs out</span></div>` : "";
       const final = st >= 6 ? `<div class="note reveal"><b>Optional:</b> GEPA can also merge two strong candidates, combining what each does well. When the budget runs out, you read <code>result.best_candidate</code>.</div>` : "";
       const why = st === 4 ? `<div class="note reveal"><b>Why keep a pool?</b> The pool holds candidates that excel on different subsets of the tasks, and the next prompt to improve is picked from it. One top prompt would throw those away.</div>` : "";
       return `${head("The loop", st >= 5 ? "Then it goes <em>round again</em>" : "A small team, <em>one job each</em>", lede, true)}
         <div class="cast">${shown.map(member).join("")}</div>${loopback}${why}${final}
-        <p class="source mono">The characters are a teaching analogy. The line "in GEPA" says what each one is. Source: GEPA README, read 23 Oct 2026</p>`;
+        <p class="source mono">The characters are a teaching analogy. "Who" says what each one is in real life. Source: GEPA README, read 23 Oct 2026</p>`;
     },
   },
   {
