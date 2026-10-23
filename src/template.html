@@ -15,7 +15,7 @@
 </style>
 <style>
   :root {
-    --boxh: min(360px, calc(126px + max(0px, (100vh - 800px) * 0.3)));       /* run-grid boxes: 126px at 800px tall, taller on a bigger window */
+    --boxh: min(360px, calc(92px + max(0px, (100vh - 800px) * 0.3)));       /* run-grid boxes: 92px at 800px tall, taller on a bigger window */
     --detailh: min(520px, calc(300px + max(0px, (100vh - 800px) * 0.4)));    /* boxes in an opened score row */
     --monosz: clamp(12px, 0.9vw, 17px);                                      /* text inside those boxes */
   }
@@ -39,6 +39,7 @@
     padding: 6px 10px; font: inherit; font-size: 0.75em; max-width: 40vw;
   }
   main { flex: 1; min-height: 0; overflow: auto; padding: 24px 24px 120px; outline: none; }
+  main.tight { padding-bottom: 24px; }
   .stage { min-height: 100%; display: flex; flex-direction: column; }
   .slide { margin: auto; width: 100%; max-width: min(1500px, calc(100vw - 168px)); } /* leaves a gutter for the corner companion */
   .head { text-align: center; margin-bottom: 28px; }
@@ -208,13 +209,13 @@
   .stack { display: flex; align-items: stretch; justify-content: center; gap: 12px; flex-wrap: wrap; } .stack .pcard { width: 13em; display: flex; flex-direction: column; justify-content: center; } .stack .arrow { align-self: center; }
   .bignum { font-family: var(--font-mono); font-size: 2.4em; margin: 0; color: var(--ink); }
   /* The role figure: the character whose turn it is, bottom right, on every screen that has a role. */
-  .role { position: fixed; right: 12px; bottom: 70px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+  .role { position: fixed; right: 6px; bottom: 70px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
   .role .stick { height: 96px; }
-  .role span { font-family: var(--font-mono); font-size: 0.62em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--spot); background: var(--bg); padding: 0 4px; }
+  .role span { font-family: var(--font-mono); font-size: 0.58em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--spot); background: var(--bg); padding: 0 4px; }
   @media (max-width: 760px) { .role { display: none; } }
   pre.fixedp { max-height: calc(100vh - 490px); overflow: auto; } pre.fixedp.tall { max-height: calc(100vh - 500px); }
   td.clip { max-width: 22em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 0.9em; }
-  .tablebox.small { max-height: calc(100vh - 450px); }
+  .tablebox.small { max-height: calc(100vh - 450px); } .tablebox.small.tight { max-height: calc(100vh - 490px); }
   .dgrid.one { grid-template-columns: minmax(0, 1fr); max-width: 56em; margin: 0 auto; }
   .dgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card.sealed { text-align: center; min-width: 4.5em; flex: 0 0 auto; } .card.sealed p { font-family: var(--font-mono); font-size: 1.6em; margin: 0; color: var(--faint); }
@@ -223,7 +224,7 @@
   .tip { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line-2); background: var(--panel); }
   .tip h3 { margin: 0 0 2px; } .tip p { margin: 0; color: var(--dim); font-size: 0.86em; }
   .tipface { flex: 0 0 auto; display: flex; }
-  .bigq { text-align: center; font-family: var(--font-disp); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-size: clamp(56px, 13vh, 150px); margin-top: clamp(24px, 9vh, 120px); color: var(--ink); }
+  .bigq { text-align: center; font-family: var(--font-disp); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-size: clamp(40px, min(13vh, 14vw), 150px); margin-top: clamp(24px, 9vh, 120px); color: var(--ink); }
   .bigq em { font-style: normal; color: var(--spot); }
   @media (max-width: 900px) { .tips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 600px) { .tips { grid-template-columns: minmax(0, 1fr); } }
@@ -482,10 +483,11 @@ async function rerun(kind, v, id) {
 function runGrid(v) {
   const cells = SAMPLE.map((id, n) => {
     const l = LOGS.find((x) => x.id === id), a = R.act[v][id], e = R.err[`a:${v}:${id}`], running = R.busy.has(`a:${v}:${id}`);
-    const waiting = running || (!a && !e);
+    const notConnected = !a && !running && R.status === "offline";
+    const waiting = !notConnected && (running || (!a && !e));
     let seen = "";
     if (a && !running) { const j = scoreReply(a.text, l.exp); seen = j.json ? "A script can parse this reply." : a.text.trim().startsWith("```") ? "A script cannot parse it: wrapped in a code fence." : "A script cannot parse it: not JSON."; }
-    const out = waiting ? `<div class="boxfix">${loader(`${nice(R.actor) || "The model"} is answering…`, `a:${v}:${id}`, 56)}</div>`
+    const out = notConnected ? `<pre tabindex="0">Not connected to the server, so this call cannot run. In a terminal: node server.mjs</pre>` : waiting ? `<div class="boxfix">${loader(`${nice(R.actor) || "The model"} is answering…`, `a:${v}:${id}`, 56)}</div>`
       : `<pre tabindex="0" aria-label="Model output, log ${id}">${a ? esc(a.text.trim()) : `The call failed: ${esc(e)}`}</pre>`;
     return `<div class="cell">
       <div class="cellhead"><b>Run ${n + 1}</b> · log ${id} · ${esc(l.pipe)}</div>
@@ -759,7 +761,7 @@ const SCREENS = [
     render: (st) => `
       ${head("Version 1", "Start with what <em>everybody</em> writes", st < 1 ? "An agent that reads a failed pipeline log and says what went wrong." : "", true)}
       ${st < 1 ? `<pre class="prompt">${segsHtml(P1)}</pre><div class="row"><button class="primary" data-act="goto:1" ${R.status === "live" ? "" : "disabled"}>Run on 4 sample logs</button></div>${offlineNote()}`
-        : `${sampleDone("v1") ? `<div class="note top reveal">It reads fine. But will it answer the same way tomorrow? On other logs? Could a script act on it?</div>` : ""}${runGrid("v1")}${retryRow()}`}`,
+        : `${sampleDone("v1") ? `<div class="note top reveal">It reads fine. But will it answer the same way tomorrow? On other logs? Could a script act on it?</div>` : ""}${runGrid("v1")}${retryRow()}${offlineNote()}`}`,
   },
   {
     id: "v2", title: "Version 2: improve it, one technique at a time", tag: "live", live: true, steps: 6,
@@ -780,7 +782,7 @@ const SCREENS = [
       const fenced = SAMPLE.filter((id) => R.act.v2[id] && R.act.v2[id].text.trim().startsWith("```")).length;
       return `
       ${head("Version 2", k === 0 ? "Start from version 1, then <em>improve</em> it" : esc(TECH[k - 1].label) + ": <em>added</em>", "", true)}
-      ${st >= 6 ? `${sampleDone("v2") ? `<div class="note warnnote top reveal">${parsed} of 4 replies parse as JSON${fenced ? `, and ${fenced} are wrapped in a code fence, which a strict parser rejects` : ""}. But these are four logs I chose. How would it do on the rest? I still can't tell.</div>` : ""}${runGrid("v2")}${retryRow()}`
+      ${st >= 6 ? `${sampleDone("v2") ? `<div class="note warnnote top reveal">${parsed} of 4 replies parse as JSON${fenced ? `, and ${fenced} are wrapped in a code fence, which a strict parser rejects` : ""}. But these are four logs I chose. How would it do on the rest? I still can't tell.</div>` : ""}${runGrid("v2")}${retryRow()}${offlineNote()}`
       : `<pre class="prompt">${segsHtml(v2Segs(k))}</pre>
         ${st === 5 ? `<div class="row"><button class="primary" data-act="goto:6" ${R.status === "live" ? "" : "disabled"}>Run on the same 4 logs</button></div>${offlineNote()}` : `<div class="cluster shelf">${shelf}</div>`}`}`;
     },
@@ -997,14 +999,14 @@ const SCREENS = [
       const fenced = (v) => ids("test").filter((id) => R.act[v][id] && R.act[v][id].text.trim().startsWith("```")).length;
       const done = t2 !== null && t3 !== null;
       return `${head("The test", "One look at the <em>test</em>", "", true)}
-        <div class="scroll tablebox small" tabindex="0" aria-label="Test logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("test"))}</tbody></table></div>
+        <div class="scroll tablebox small tight" tabindex="0" aria-label="Test logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("test"))}</tbody></table></div>
         <div class="row reveal"><span>v2 · five <b>${fm(miniMean("v2"))}</b> · val <b>${fm(v2v)}</b> · test <b>${fm(t2)}</b></span><span class="arrow">&rarr;</span><span>v3 · five <b>${fm(miniMean("v3"))}</b> · val <b>${fm(v3v)}</b> · test <b>${fm(t3)}</b></span>${costLine("v3", ids("test"))}</div>
         ${done ? `<div class="note warnnote reveal"><b>${t3 > t2 ? "Version 3 scores higher than version 2 on test." : t3 === t2 ? "Version 3 and version 2 score the same on test." : "Version 3 scores lower than version 2 on test."}</b> ${fenced("v2")} of 10 version 2 replies were code-fenced and failed the JSON gate, against ${fenced("v3")} of 10 for version 3. ${fenced("v2") > fenced("v3") ? "Most of the gain is a format fix." : "The fences do not explain the difference."} Ten logs per split is a toy. This test is now used up: change the prompt because of it and it is no longer clean.</div>` : ""}${retryRow()}${offlineNote()}`;
     },
   },
   {
     id: "loop", title: "Round after round", tag: "live", live: true, steps: 1,
-    hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["worried", "The Coach read failures from every split. The test is spent."]],
+    hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["thinking", "This is the prompt we keep. Green is what the Coach added."]],
     notes: "The loop from the last six slides, repeated, until one prompt passes all three gates on all 30 logs or five rounds are used. Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, the Grader marks them, and the Judge accepts the new prompt only if it passes more logs. The Judge's rule changes here, because the goal is now 30 of 30. Say the cost out loud: to pass all 30, the Coach has to read failures from every split, test included. So no log is left unseen, and the final score proves nothing new. To claim it you would hold out a fresh pipeline. Last step: the final prompt, as a diff against version 2.",
     role: () => (R.loop && R.loop.running ? (R.loop.phase === "coach" ? "coach" : "student") : "judge"),
     effect: () => { needCand(); if (R.cand.v3) runLoop(); },
@@ -1124,6 +1126,9 @@ function draw(motion) {
   if (sc.live && R.busy.size) hint = ["excited", `The model is working. ${R.busy.size} call${R.busy.size > 1 ? "s" : ""} left.`];
   const comp = $("companion");
   comp.hidden = !hint[1];
+  // A slide too tall to leave the companion's gap at the bottom drops that gap, so the page does not scroll for nothing. Judged on heights, so it cannot flip back and forth.
+  const mainEl = $("main");
+  mainEl.classList.toggle("tight", slide.offsetHeight + 24 + 120 > mainEl.clientHeight);
   const crowded = slide.getBoundingClientRect().bottom > innerHeight - 190;
   comp.className = "companion" + (crowded ? " crowded" : "");
   const art = sc.live && R.busy.size ? claudeLoader(64) : EklavyaMascot.svg({ expression: hint[0], variant: "face", size: 56 });

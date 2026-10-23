@@ -15,5 +15,13 @@ scripts/check-all.sh               # every automated check in one go (build, num
 
 On the title screen, **Warm up** fills in the live calls (reusing recordings), and **Start from empty** clears every recording (a backup is kept) so every call is live.
 
+## Before the talk
+
+1. `scripts/check-all.sh` (no model is called). It must end with `all automated checks passed`.
+2. `node server.mjs`, open the page, press **Warm up the live calls** on the title screen once. Everything already recorded is reused, so it takes seconds. Wait for the button to read "Warm up the live calls" again, then stop the server (Ctrl+C saves the last recording) before starting the next one.
+3. Present with `node server.mjs --replay`. It never calls a model, so a dead connection or a slow model cannot hurt you. **Run now** and **Start from empty** are disabled in replay, on purpose.
+4. A backup of the recordings is in `.cache/llm.talk-backup.json` (git-ignored). Restore it by copying it over `.cache/llm.json` with the server stopped.
+5. Do not press the Coach's **Run now** (slide 9) on the real recordings: it asks the Coach again, which can write a different prompt and sends slide 13's loop through about 400 new calls. It is disabled in replay.
+
 Keys: Next and Previous (arrow keys), Jump menu in the header, N for speaker notes.
 Needs Node 18 or later and a logged-in `claude` CLI. Read `CLAUDE.md` before changing anything.
