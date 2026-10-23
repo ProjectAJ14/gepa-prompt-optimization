@@ -718,9 +718,9 @@ const SCREENS = [
     },
   },
   {
-    id: "gepa-loop", title: "How GEPA works", tag: "ref", steps: 6,
+    id: "gepa-loop", title: "How GEPA works", tag: "ref", steps: 5,
     hints: [["curious", "The Teacher hands out your examples."], ["focused", "The Student tries the current prompt."], ["thinking", "The Grader says how it did, and why."],
-      ["happy", "The Coach rewrites the prompt."], ["focused", "The Judge keeps it only if it improved."], ["excited", "Then it goes round again."], ["happy", "The best candidate comes out."]],
+      ["happy", "The Coach rewrites the prompt."], ["focused", "The Judge keeps it only if it improved."], ["excited", "Round again, until the budget runs out. Then the best candidate."]],
     notes: "A team with one job each. Teacher: your examples. Student: runs the prompt and writes down its steps. Grader: your metric, a score plus the reason. Coach: reads the mistakes and the feedback and rewrites the prompt. Judge: keeps the new prompt only if it improved, and keeps a pool of candidates that are good at different things. Then repeat until the call budget runs out. Say clearly: these are characters for teaching, not GEPA's own terms. The \"Who\" line on each card says what the character is in real life. Source: the GEPA README.",
     render: (st) => {
       const cast = [
@@ -732,9 +732,9 @@ const SCREENS = [
       ];
       const shown = cast.slice(0, Math.min(st + 1, 5));
       const member = (m, k) => `<div class="member reveal${k === Math.min(st, 4) && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${m[2]}</p><p class="gterm"><span>Who</span>${m[3]}</p></div>`;
-      const lede = ["", "", "", "", "", "Round after round, the pool grows with candidates that each do well on different examples.", ""][st];
+      const lede = ["", "", "", "", "", ""][st];
       const loopback = st >= 5 ? `<div class="loopback reveal"><span class="chip">repeat until the budget (max_metric_calls) runs out</span></div>` : "";
-      const final = st >= 6 ? `<div class="note reveal"><b>Optional:</b> GEPA can also merge two strong candidates, combining what each does well. When the budget runs out, you read <code>result.best_candidate</code>.</div>` : "";
+      const final = st >= 5 ? `<div class="note reveal"><b>Optionally</b>, GEPA also merges two strong candidates. When the budget runs out, you read <code>result.best_candidate</code>.</div>` : "";
       const why = st === 4 ? `<div class="note reveal"><b>Why keep a pool?</b> The pool holds candidates that excel on different subsets of the tasks, and the next prompt to improve is picked from it. One top prompt would throw those away.</div>` : "";
       return `${head("The loop", st >= 5 ? "Then it goes <em>round again</em>" : "A small team, <em>one job each</em>", lede, true)}
         <div class="cast">${shown.map(member).join("")}</div>${loopback}${why}${final}
