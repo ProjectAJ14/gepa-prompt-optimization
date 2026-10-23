@@ -611,7 +611,7 @@ const SCREENS = [
       const v = st === 3 ? "v1" : st >= 4 ? "v2" : null;
       const showExp = st >= 1, showSplit = st >= 2;
       const mark = (b) => (b ? '<span class="ok">pass</span>' : '<span class="bad">fail</span>');
-      const th = `<th>#</th><th>Pipeline</th>${showSplit ? "<th>Split</th>" : ""}<th>Log</th>${showExp ? "<th>Expected</th>" : ""}${v ? '<th class="num">json</th><th class="num">label ok</th><th class="num">correct</th><th class="num">judge</th><th class="num">score</th>' : ""}`;
+      const th = `<th>#</th><th>Pipeline</th>${showSplit ? "<th>Split</th>" : ""}<th>Log</th>${showExp ? '<th class="num">Expected</th>' : ""}${v ? '<th class="num">json</th><th class="num">label ok</th><th class="num">correct</th><th class="num">judge</th><th class="num">score</th>' : ""}`;
       const cols = 3 + (showSplit ? 1 : 0) + (showExp ? 1 : 0) + (v ? 5 : 0);
       const rows = ALL.map((l) => {
         let tail = "", j = null;
