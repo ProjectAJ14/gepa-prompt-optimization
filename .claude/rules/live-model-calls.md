@@ -14,8 +14,10 @@ call that exists now and to any call added later.
 
 - **Every call goes through `server.mjs`**, which runs `claude -p`. The page never calls an API directly and never
   holds a key. A new kind of call is a new `/api/...` route in the server plus a helper in the template.
-- **Two different models.** The actor (runs the prompt under test) is **Haiku 4.5** (`claude-haiku-4-5`). The grader
-  (judges the actor's reply) is **Haiku 5.5** (`claude-haiku-5-5`). `ACTOR_MODEL` and `GRADER_MODEL` override them.
+- **Three different models, one per role.** The actor / Student (runs the prompt under test) is **Haiku 4.5** (`claude-haiku-4-5`). The grader
+  (judges the actor's reply) is **Haiku 5.5** (`claude-haiku-5-5`). The Coach (reads the failures and rewrites the prompt) is **Sonnet 5.5**
+  (`claude-sonnet-5-5`). `ACTOR_MODEL`, `GRADER_MODEL` and `COACH_MODEL` override them. The Coach sees only the five training results,
+  never validation or test.
   A model never grades its own output.
 - The child process gets no tools, no hooks, no MCP servers and no saved session. Do not loosen that.
 - A new route validates its input (type, length, allowed values), requires the `x-walkthrough: 1` header and a JSON
@@ -65,8 +67,11 @@ split) stay closed.
 
 - Never replace a live result with an invented one, and never hide a failure. A failed call shows its error and a Retry
   button; nothing is retried silently. If the server is not running, the slide says so.
-- A mocked screen keeps its **Example data** tag until it is replaced with live calls. Do not mix a mocked number into
-  a sentence about a live one.
+- Nothing is mocked. If a mocked number is ever added, it keeps the **Example data** tag and is never mixed into a sentence about a live one.
+- **Screens 7 to 12 are GEPA's loop run by hand, one round.** Say so on screen; it is not the `gepa` package. Each role on screen is a real
+  actor: Teacher = the logs, Student = the actor, Grader = gates plus the judge's note, Coach = `/api/coach`, Judge = a rule in code.
+- The Coach's input is built by the page (`coachPrompt()`), so the slide shows the exact text sent. Its reply must contain a `<prompt>` with
+  `{{log}}` exactly once (`parseCoach`), or the screen shows the error and a Retry. Test split calls run only when the Teacher's seal is opened.
 - Captions that describe results are computed from the data (`scoreNote`, the v2 note), never typed as if the outcome
   were known. The first live run showed a model can ignore "JSON only", so write nothing the data might contradict.
 - Gates are strict. A reply wrapped in a code fence fails the JSON gate. Changing that is a decision for the speaker

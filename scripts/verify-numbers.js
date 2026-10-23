@@ -23,30 +23,40 @@ sandbox.window.document = sandbox.document;
 vm.createContext(sandbox);
 scripts.forEach((code, i) => {
   const last = i === scripts.length - 1;
-  vm.runInContext(last ? code + "\n;globalThis.__X = { mean, judge, LOGS, OUT };" : code, sandbox);
+  vm.runInContext(last ? code + "\n;globalThis.__X = { scoreReply, parseCoach, diffSegs, LOGS, LABELS };" : code, sandbox);
 });
-const { mean, judge, LOGS, OUT } = sandbox.__X;
+const { scoreReply, parseCoach, diffSegs, LOGS, LABELS } = sandbox.__X;
 
-// [version, split, includes the two logs added on the "fix the data" screen, expected mean]
-const EXPECTED = [
-  ["v2", "train", false, 0.717], ["v2", "val", false, 0.867], ["v2", "test", false, 0.667],
-  ["v3", "train", false, 1.0], ["v3", "val", false, 1.0], ["v3", "test", false, 0.8], ["v3", "train", true, 0.889],
-  ["v4", "train", true, 1.0], ["v4", "val", false, 1.0], ["v4", "test", false, 0.975],
-  ["B", "train", false, 0.75], ["B", "val", false, 0.75],
-];
+// Nothing on the live screens is mocked any more, so there are no stored scores to compare. What can go wrong without a model is
+// the code around it: the three gates and the score, the parsing of the Coach's reply, the diff, and the data itself.
 let bad = 0;
-for (const [v, split, ext, want] of EXPECTED) {
-  const got = Number(mean(v, split, ext).toFixed(3));
-  const ok = got === want;
-  if (!ok) bad++;
-  console.log(`${ok ? "ok  " : "FAIL"} ${v.padEnd(3)} ${split.padEnd(5)} ext=${ext ? 1 : 0}  got ${got}  want ${want}`);
-}
-// Every log a version is scored on must have a mocked output, and no score may leave [0, 1].
-for (const v of ["v2", "v3", "v4", "B"]) {
-  const scored = LOGS.filter((l) => (v === "v2" ? !l.added : true));
-  const missing = scored.filter((l) => !(l.id in OUT[v])).map((l) => l.id);
-  const outOfRange = scored.filter((l) => { const s = judge(v, l).score; return !(s >= 0 && s <= 1); }).map((l) => l.id);
-  if (missing.length || outOfRange.length) { bad++; console.log(`FAIL ${v}: missing ${missing} out-of-range ${outOfRange}`); }
-}
+const check = (name, ok, detail = "") => { if (!ok) bad++; console.log(`${ok ? "ok  " : "FAIL"} ${name}${ok ? "" : "  " + detail}`); };
+const near = (a, b) => Math.abs(a - b) < 1e-9;
+const good = JSON.stringify({ label: "LATE_DATA", reason: "The source stopped producing offsets." });
+
+check("correct, short reason scores 1", near(scoreReply(good, "LATE_DATA").score, 1));
+check("correct, 16-word reason scores 0.75", near(scoreReply(JSON.stringify({ label: "LATE_DATA", reason: "one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen" }), "LATE_DATA").score, 0.75));
+check("wrong but allowed label passes 2 of 3 gates: 2/3 of 0.5", near(scoreReply(good, "SCHEMA_DRIFT").score, (2 / 3) * 0.5));
+check("invented label passes 1 of 3 gates: 1/3 of 0.5", near(scoreReply(JSON.stringify({ label: "DUPLICATES", reason: "x" }), "LATE_DATA").score, (1 / 3) * 0.5));
+check("a code-fenced reply fails the JSON gate and scores 0", scoreReply("```json\n" + good + "\n```", "LATE_DATA").score === 0);
+check("prose scores 0", scoreReply("This is a late data problem.", "LATE_DATA").score === 0);
+check("any failed gate stays under 0.5", [good, "x", JSON.stringify({ label: "NOPE", reason: "x" })].every((r) => scoreReply(r, "SCHEMA_DRIFT").score < 0.5));
+
+const okPrompt = "<why>All fenced.</why>\n<prompt>Rules\n<log>\n{{log}}\n</log></prompt>";
+check("parseCoach reads prompt and why", parseCoach(okPrompt).prompt.includes("{{log}}") && parseCoach(okPrompt).why === "All fenced.");
+check("parseCoach refuses a reply with no prompt block", !!parseCoach("<why>x</why>").error);
+check("parseCoach refuses a prompt that lost {{log}}", !!parseCoach("<prompt>no placeholder</prompt>").error);
+check("parseCoach refuses a prompt with {{log}} twice", !!parseCoach("<prompt>{{log}} {{log}}</prompt>").error);
+
+const d = diffSegs("a\nb\n{{log}}", "a\nnew line\n{{log}}");
+check("diffSegs marks the new line, counts one added and one dropped", d.added === 1 && d.removed === 1 && d.segs.some((x) => x.hot && x.t === "new line") && !d.segs.some((x) => x.hot && x.t === "a"));
+
+const by = (k) => LOGS.reduce((m, l) => ((m[l[k]] = (m[l[k]] || 0) + 1), m), {});
+check("30 logs, 10 per split", LOGS.length === 30 && Object.values(by("split")).every((n) => n === 10), JSON.stringify(by("split")));
+check("ids are 1 to 30 and unique", new Set(LOGS.map((l) => l.id)).size === 30 && LOGS.every((l, i) => l.id === i + 1));
+check("every label is allowed", LOGS.every((l) => LABELS.includes(l.exp)));
+check("a pipeline sits in one split only", Object.values(LOGS.reduce((m, l) => ((m[l.pipe] = m[l.pipe] || new Set()).add(l.split), m), {})).every((x) => x.size === 1));
+check("each split has every label at least once", ["train", "val", "test"].every((sp) => LABELS.every((lb) => LOGS.some((l) => l.split === sp && l.exp === lb))));
+check("the five-log minibatch has one log per label", (() => { const ids = [1, 2, 3, 6, 7]; const ls = ids.map((i) => LOGS.find((l) => l.id === i)); return ls.every((l) => l.split === "train") && new Set(ls.map((l) => l.exp)).size === 5; })());
 console.log(bad ? `\n${bad} problem(s)` : "\nall numbers match");
 process.exit(bad ? 1 : 0);

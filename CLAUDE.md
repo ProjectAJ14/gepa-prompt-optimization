@@ -9,11 +9,11 @@ check before believing its results. Read `docs/decisions.md` for what was decide
 
 | Path | Responsibility |
 |---|---|
-| `src/template.html` | **The source.** Markup, styles, all screens, mocked data and scoring. Has three placeholders. |
+| `src/template.html` | **The source.** Markup, styles, all screens, the logs, scoring and the loop code. Has five placeholders. |
 | `build.py` | Fills the placeholders with Eklavya's tokens and mascot and writes `index.html` |
 | `index.html` | Built output, committed so it opens with no build step. Never edit it by hand |
 | `server.mjs` | Local server: serves the page and runs the live model calls through `claude -p`, with a cache and a replay mode |
-| `scripts/verify-numbers.js` | Recomputes every **mocked** score and compares it with the story |
+| `scripts/verify-numbers.js` | Checks the scoring gates, the Coach-reply parser, the diff and the data split (no mocked scores exist) |
 | `scripts/smoke-render.js` | Renders every step of every screen in a fake DOM and reports any that throw |
 | `.claude/rules/` | The speaker's standing requirements, one file per area: `slides.md`, `live-model-calls.md`, `checks.md` |
 | `src/claude-loader.svg` | The loading critter shown while a model call runs; `build.py` inlines it. Replace the file to change it |
@@ -37,7 +37,7 @@ preference, add it to the matching rule file in the same change.**
 
 ```bash
 python3 build.py                              # rebuild index.html (--eklavya <path> if the design-token checkout moved)
-node scripts/verify-numbers.js                # mocked numbers must print "all numbers match"
+node scripts/verify-numbers.js                # must print "all numbers match"
 node server.mjs                               # live: serves http://127.0.0.1:8787 and makes real model calls
 node server.mjs --replay                      # stage-safe: answers only from .cache/llm.json, never calls a model
 open index.html                               # works for every screen except the live ones, which say so
@@ -46,11 +46,11 @@ open index.html                               # works for every screen except th
 ## Rules
 
 1. **Edit `src/template.html`, then rebuild.** A hand edit to `index.html` is lost on the next build.
-2. **Honesty about data.** Screens tagged **Live run** show real model replies: Haiku 4.5 acts (runs the
-   prompt) and Haiku 5.5 grades, both through `claude -p`. Never replace a live result with an invented one,
-   and never hide a failure: if the server is not running, the screen says so. Screens tagged **Example data**
-   are still mocked and are being replaced with live runs phase by phase (see `docs/decisions.md`); never
-   present a mocked number as a finding. GEPA facts come from its README, with the date read. Every live call
+2. **Honesty about data.** Screens tagged **Live run** show real model replies: Haiku 4.5 acts (the Student),
+   Haiku 5.5 grades, Sonnet 5.5 coaches, all through `claude -p`. Never replace a live result with an invented one,
+   and never hide a failure: if the server is not running, the screen says so. Nothing is mocked now (screens 7 to 12
+   run one round of GEPA's loop by hand, and say so: it is not the `gepa` package). If a mocked number is ever added back,
+   it carries the **Example data** tag and never appears as a finding. GEPA facts come from its README, with the date read. Every live call
    shows its input prompt, its full output in a fixed-size read-only box, the grader's verdict and reason, when
    it happened, and a **Run now** button (`.claude/rules/live-model-calls.md`).
 3. **Interaction model.** Every screen is a list of steps: Next adds one thing, Previous takes it back.

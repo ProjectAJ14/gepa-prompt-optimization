@@ -1,6 +1,6 @@
 # Decisions, verified facts and open items
 
-First written 23 Oct 2026; updated the same day when the first screens moved from mocked to live model calls.
+First written 23 Oct 2026; updated the same day when the screens moved from mocked to live model calls (all of them, from slide 7 on).
 
 ## The talk
 
@@ -27,8 +27,11 @@ First written 23 Oct 2026; updated the same day when the first screens moved fro
 |---|---|
 | Format | Every screen is stepped: Next adds one thing, Previous takes it back. Prompts grow by appending. |
 | Techniques order | List the labels, show one example, name the edge cases, say the output format, **tag the inputs last**. Tags are the payoff: they keep several inputs and sections of one prompt apart. |
-| **Live, not mocked** (23 Oct) | The speaker changed their mind about mock data. Where the page needs a model, it makes a real `claude -p` call. **Phase 1 (done): versions 1 and 2 and the score screen.** Phase 2 (open): the optimizer, version 3, fix-the-data and the test reveal. |
-| Models | **Haiku 4.5 acts** (runs the prompt), **Haiku 5.5 grades**. Different models, so nothing grades itself. Override with `ACTOR_MODEL` and `GRADER_MODEL`. |
+| **Live, not mocked** (23 Oct) | The speaker changed their mind about mock data. Where the page needs a model, it makes a real `claude -p` call. **Done for every screen**: phase 1 was versions 1 and 2 and the score screen; phase 2 (the same day) rebuilt everything after the score as one live round of the loop, and deleted the mocked outputs, the invented failures and the "fix the data" screen. |
+| Models | **Haiku 4.5 acts** (the Student), **Haiku 5.5 grades**, **Sonnet 5.5 coaches** (my choice: the speaker named no Coach model; a stronger model suits reading failures and rewriting a prompt). Different models, so nothing grades itself. Override with `ACTOR_MODEL`, `GRADER_MODEL` and `COACH_MODEL`. |
+| **The loop, from slide 7** (23 Oct) | Speaker's call: rethink everything after the score slide around the five roles and run it for real. **One round, by hand, labelled as such: it is not the `gepa` package** (not installed, and it would need API keys this setup avoids). Teacher = the 30 logs; Student = Haiku 4.5; Grader = three code gates plus Haiku 5.5's note; Coach = Sonnet 5.5 via `/api/coach`; Judge = a rule in code. The minibatch is five train logs, one per label (ids 1, 2, 3, 6, 7). Slides: who plays whom, Student and Grader on the five, the Coach rewrites, the Student tries again, the Judge decides (rule one: beat the parent on the same five; rule two: the winner on the ten validation logs), the test once. |
+| Strict JSON parsing kept | Assumed, not decided by the speaker: a code-fenced reply fails the JSON gate. It is what gives the Coach something real to find (see the live findings). Fence-tolerant parsing remains an open question. |
+| Role figure | Each slide from the score slide on shows the active character, bottom right (speaker's call, 23 Oct). |
 | Grader's job | Reads each reply for meaning and says whether it names the right failure, ignoring format. It is a second opinion next to the three code gates, so the screen can show where they disagree. |
 | How calls run | `server.mjs` (Node, no dependencies) serves the page and runs `claude -p` with no tools, hooks, MCP servers or saved session, from a temp directory. Answers are cached in `.cache/llm.json`; `--replay` presents from the cache only. |
 | Run view | A 2×2 grid of the four sample runs, all visible at once (speaker's call, 23 Oct; replaced one-log-at-a-time tabs). Each cell has its own exact prompt and the model's full output side by side in fixed-size read-only boxes, its time, and Run now. |
@@ -44,20 +47,22 @@ First written 23 Oct 2026; updated the same day when the first screens moved fro
 | Loading indicator | While a call runs: the output box shows a small orange pixel critter working (hopping legs, typing arms, blinking), what it waits for and the elapsed seconds; small waits use a ring spinner; the corner companion swaps to the critter. The speaker asked for the Claude mascot. **It is an original stand-in, not Anthropic's artwork**: nothing was downloaded, and an official asset can replace `src/claude-loader.svg`. |
 | 30 logs, 10 per split | Speaker asked for 10 per split (23 Oct), up from 12 logs in all. Ids: train 1-10 (spark-clicks, dbt-finance), val 11-20 (airflow-orders, fivetran-crm), test 21-30 (kafka-events, beam-telemetry), added 31-32 (flink-sessions). The 30-row table sits in a scrollable box. All 120 live calls (30 logs, 2 versions, act and grade) were recorded 23 Oct. The mocked screens got new mocked outputs for the new logs and their numbers were recomputed. |
 | Toy task | Classify pipeline failure logs (30 invented logs, 10 per split, 6 pipelines, 5 labels; speaker asked for 10 each on 23 Oct, up from 12). Fits a data-engineering audience. |
-| Honest ending | After the test split is revealed and acted on, the v4 test number is marked "peeked": it is no longer a clean test. (Mocked today; phase 2 redoes it live.) |
+| Honest ending | The test split is opened once, at the end (slide 12), and the slide says what that costs: change the prompt because of the number and it is no longer clean. |
 | GEPA before the score | Superseded 23 Oct (speaker's call): GEPA is introduced right after version 2, in **two screens** that replace the old three (what, install, repository). Screen 4 defines it in plain English with a stick figure (one step); screen 5 shows the process as a cast of five. Install, repository and the Claude plugin sit under the illustration on screen 4. The plugin commands are from the README's "Use GEPA as an Agent Skill" section (read 23 Oct 2026): `/plugin marketplace add gepa-ai/gepa` then `/plugin install gepa-optimize-anything@gepa`. The score screen now follows as "what you hand over". The characters come from the speaker's own explainer video (`~/.hyperframes-studio/New video`), redrawn as original SVG in the design tokens. |
 | Design | Centred slides, the Eklavya design tokens inlined, the archer mascot as a companion with a short hint per step. **No Eklavya wordmark and no other product names on any slide** (speaker's call, 23 Oct); the one exception is the NonStop io logo in the header. |
 | Real-results screen | **Removed** (23 Oct). It showed another project's results. The live runs become the real data. |
 | Browser checks | Playwright MCP. The browser-use plugin registered but failed to connect ("Connection closed"). |
-| Mock honesty | Superseded: nothing on the live screens is mocked. Screens still tagged "Example data" are mocked and will be replaced. |
+| Mock honesty | Superseded: nothing is mocked. |
 
 ## Screens, in order
 
 1. Title (no mascot, Warm-up button) · 2. Version 1, the one-liner **(live)** · 3. Version 2, five techniques added one by one,
-then run **(live)** · 4. What is GEPA (one step: the weak prompt and GEPA rewriting it, with install, repository and the Claude plugin underneath; the "reads the why", "what is a candidate" and separate "open source" steps were removed on 23 Oct at the speaker's request) ·
+then run **(live)** · 4. What is GEPA (one step, with install, repository and the Claude plugin) ·
 5. How GEPA works (the cast: Teacher, Student, Grader, Coach, Judge, then the loop) · 6. We need a score: examples, answers, split,
-score v1 and v2 **(live, with a judge column)** · 7. The pipeline around the optimizer (ETL) ·
-8. Optimizer run 1 *(mock)* · 9. Version 3 and the test split *(mock)* · 10. Fix the data, run again *(mock)* · 11. The checklist
+score v1 and v2 **(live, with a judge column)** · 7. Who plays whom (the cast gets real models) · 8. Student and Grader: the first try, on five logs **(live)** ·
+9. The Coach rewrites the prompt **(live)** · 10. The Student tries again **(live)** · 11. The Judge decides **(live)** · 12. The test, once **(live)** · 13. The checklist
+
+Slides 6 to 12 show the role figure bottom right.
 
 ## What the first live runs showed (23 Oct 2026, Haiku 4.5 acting, Haiku 5.5 grading; the original 12-log set, so counts are out of 9)
 
@@ -74,11 +79,22 @@ These are real, but one run each: replies vary, and the cache pins what the spea
 - The judge marked log 2 (a sensor timing out waiting for a file) as the wrong idea for version 1, which is an
   arguable call: it is a place where the grader and the gates, or two graders, could disagree.
 
+## What the first full round showed (23 Oct 2026; Haiku 4.5 Student, Haiku 5.5 Grader, Sonnet 5.5 Coach; one run, recorded)
+
+Real, one run each, pinned by the cache. Re-run before quoting.
+
+- **Version 2 scores 0.000 on all 30 logs under strict gates:** every reply is wrapped in a code fence, so none parses.
+- **The Coach found it in about 6 s.** Its reason: all five replies had the right label, but each was code-fenced, so the JSON check failed. It added one line to the rules block: output raw JSON only, no code fence or backticks, first character `{`, last `}`. Nothing else changed.
+- **Version 3, the five logs:** 0.767 (4 of 5 labels right; checkpoint lag, log 3, got a wrong label). **Validation:** 0.000 to 0.783. **Test:** 0.000 to 0.708. Test log 26 (STRING to FLOAT) fails the JSON gate even with the new line; test log 22 (empty topic) gets a wrong label. The Judge keeps version 3 on both rules.
+- **What this does and does not show:** the gain is real and comes from a formatting fix, not from smarter classification (the Grader said "right idea" on version 2's replies all along). It is one round, one run, ten logs per split, and a second Coach run may write a different prompt.
+- **Cost and speed:** the Coach call is about 6 s. A full warm-up of every call the walkthrough makes is about 190 calls.
+
+- **Replay works for the whole loop.** Checked on `--replay`: the Coach slide and the test slide answer from the cache with no model call (171 recorded calls).
+- **Scroll at 1280×800:** every step fits except small overruns that are only the mascot's reserved gap (slide 7 step 5 +15 px, slide 9 step 2 +23, slide 11 step 1 +14, slide 12 step 1 +17). Not checked at 560×900.
+
 ## Verified facts and where they come from
 
-**Mocked scores** (recomputed by `scripts/verify-numbers.js`; versions 2 to 4 and the rejected candidate, screens 8 to 10):
-v2 train 0.717, val 0.867, test 0.667; v3 train 1.000, val 1.000, test 0.800; v4 val 1.000, test 0.975; rejected candidate B train and
-val 0.750 (recomputed for the 30-log set). **These v2 numbers no longer match the live v2 results above**, which is why phase 2 exists.
+**Scores** are no longer stored anywhere: every number on a slide comes from a recorded or live call. `scripts/verify-numbers.js` checks the code around them (gates, parser, diff, data split).
 
 **GEPA facts on screens 4 and 5:** from the repository README at https://github.com/gepa-ai/gepa, fetched
 23 Oct 2026 (a summary of the page, not the raw file). Covered: the one-line definition, the paper (*GEPA: Reflective
@@ -102,13 +118,9 @@ the install from `main`, the Claude Code skill commands, the entry points (`gepa
 - The live v1 and v2 numbers on the score screen are for the 30-log set: v2 parses 0 of 20 train and validation replies (code fences), the judge says 18 of 20 have the right idea.
 - **Recordings made before 23 Oct 2026, 19:24 have no timestamp** and show "time not recorded" until each call is re-run
   with Run now. A "re-run all" button is not built; it would cost about 50 calls.
-- **Decide how strict the parser is.** Today a reply wrapped in a code fence fails the JSON gate. That is honest
-  and sets up the optimizer well, but it makes version 2 look broken. The alternative is to strip a code fence
-  before parsing, which is what many pipelines do. Phase 2 depends on this choice.
-- **Phase 2: make the rest live.** Optimizer run 1, version 3, fix-the-data and the test reveal still use mocked
-  outputs built around invented failures. Rebuild them from the real failures (the code fence first), using the
-  same actor and grader, and re-derive the "validation looked perfect, test did not" moment from real runs
-  or drop it if the real runs do not show it. Then delete `OUT` and `scripts/verify-numbers.js`' mock checks.
+- **Decide how strict the parser is.** Today a code-fenced reply fails the JSON gate, which makes version 2 score 0.000 and gives the Coach its finding. The alternative (strip the fence before parsing) would make version 2 look better and leave the Coach less to find.
+- **Iterate (last slide).** The speaker said the last slide could iterate on the loop. Not built: one round only. A second round would need the Coach to see version 3's failures (the five logs now include log 3) and a second candidate on the shelf.
+- **Real `gepa` package.** Screens 7 to 12 are the loop by hand. Running the actual package is not done and not verified here.
 - **More feedback from the speaker is coming in a new session.** Apply it through `src/template.html`.
 - Before the talk: run every live screen once to fill the cache, then present with `node server.mjs --replay`,
   and decide whether to commit `.cache/llm.json` so the recorded run survives (it is git-ignored today).

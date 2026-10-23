@@ -6,15 +6,13 @@ loading critter, embedded in a JS template string, so no backtick or `${` in it)
 
 ## Order of things inside the script
 
-1. **Data.** `LABELS`, `LOGS` (30 invented pipeline failure logs, 10 per split, plus two `added: true` logs that only join
-   training on the "fix the data" screen), `OUT` (**mocked** model outputs: `v2`, `v3`, `v4`, and `B`, a rejected
-   rambling candidate). Mocks serve the screens after the score screen, until they get live runs too.
-2. **Scoring.** `scoreReply(raw, expected)` applies three gates (`judge` runs it on a mock, `liveJudge` on a real reply) (parses as JSON with `label` and `reason`, label is
+1. **Data.** `LABELS` and `LOGS` (30 invented pipeline failure logs, 10 per split). Nothing is mocked: every model output comes from a call.
+2. **Scoring.** `scoreReply(raw, expected)` applies three gates (`liveJudge` applies it to a real reply) (parses as JSON with `label` and `reason`, label is
    allowed, label is correct). All three pass gives `0.5 + 0.5 × quality` (quality 1 for a reason of 15 words
-   or fewer, else 0.5). Any failed gate gives `passed/3 × 0.5`, always under 0.5. `mean(version, split, ext)`
-   averages by split; `ext` includes the two added logs.
+   or fewer, else 0.5). Any failed gate gives `passed/3 × 0.5`, always under 0.5. `liveMean(version, split)`
+   averages a split; `miniMean(version)` averages the five-log minibatch.
 3. **Splits are by pipeline, 10 logs each:** spark-clicks and dbt-finance train, airflow-orders and fivetran-crm val,
-   kafka-events and beam-telemetry test, flink-sessions (2 added logs) train. Ids run train 1-10, val 11-20, test 21-30, added 31-32.
+   kafka-events and beam-telemetry test. Ids run train 1-10, val 11-20, test 21-30.
 4. **Prompts.** `TECH` is the five techniques in order (labels, example, edge cases, format, tags last).
    `v2Segs(k, rules, hotRule, flash)` builds the prompt after `k` techniques as segments; `hot` marks the text
    the newest step added. `rules` are optimizer rules and land inside the rules block above the format line.

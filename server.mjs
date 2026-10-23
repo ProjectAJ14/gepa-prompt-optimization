@@ -5,7 +5,8 @@
 //   node server.mjs --replay        stage-safe: answers only from the cache, never calls a model
 //   node server.mjs --port 8788
 //
-// One model acts (runs the prompt), a different one grades. Override with ACTOR_MODEL and GRADER_MODEL.
+// One model acts (runs the prompt), a different one grades, a third coaches (reads the failures and rewrites the prompt).
+// Override with ACTOR_MODEL, GRADER_MODEL and COACH_MODEL.
 // Calls use your Claude login, not an API key (ANTHROPIC_API_KEY is removed from the child's environment).
 import http from "node:http";
 import fs from "node:fs";
@@ -22,7 +23,9 @@ const PORT = Number(opt("--port", process.env.PORT || 8787));
 const REPLAY = argv.includes("--replay");
 const ACTOR = process.env.ACTOR_MODEL || "claude-haiku-4-5";
 const GRADER = process.env.GRADER_MODEL || "claude-haiku-5-5";
+const COACH = process.env.COACH_MODEL || "claude-sonnet-5-5";
 const ACTOR_SYSTEM = "You are a helpful assistant.";
+const COACH_SYSTEM = "You improve prompts. You change only what the evidence justifies.";
 const GRADER_SYSTEM = "You grade pipeline failure classifiers. Judge only what the reply says.";
 const LABELS = ["SCHEMA_DRIFT", "LATE_DATA", "RESOURCE_EXHAUSTED", "DATA_QUALITY", "UPSTREAM_FAILURE"];
 const GRADE_SCHEMA = {
@@ -33,7 +36,7 @@ const GRADE_SCHEMA = {
 };
 const TIMEOUT_MS = 100_000;
 const MAX_PARALLEL = 4;
-const MAX_BODY = 16 * 1024;
+const MAX_BODY = 32 * 1024;
 const MAX_TEXT = 6000;
 
 /* ---------- cache: one JSON file, written atomically ---------- */
@@ -112,6 +115,9 @@ async function cached(key, make, fresh = false) {
 
 const act = ({ prompt, fresh }) => cached(keyOf("act", ACTOR, ACTOR_SYSTEM, prompt), () => claudeCall({ model: ACTOR, system: ACTOR_SYSTEM, prompt }), fresh === true);
 
+// The page builds the coach's whole input (so it can show the exact text) and the server only runs it.
+const coach = ({ prompt, fresh }) => cached(keyOf("coach", COACH, COACH_SYSTEM, prompt), () => claudeCall({ model: COACH, system: COACH_SYSTEM, prompt }), fresh === true);
+
 function gradePrompt({ log, expected, reply }) {
   return [
     "A model was asked to classify a data-pipeline failure log. Decide whether its reply identifies the correct kind of failure.",
@@ -143,7 +149,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, fs.readFileSync(path.join(ROOT, "index.html")), "text/html; charset=utf-8");
     }
     if (req.method === "GET" && url.pathname === "/api/health") {
-      return send(res, 200, { ok: true, mode: REPLAY ? "replay" : "live", actor: ACTOR, grader: GRADER, recorded: Object.keys(cache).length });
+      return send(res, 200, { ok: true, mode: REPLAY ? "replay" : "live", actor: ACTOR, grader: GRADER, coach: COACH, recorded: Object.keys(cache).length });
     }
     if (req.method === "POST" && url.pathname.startsWith("/api/")) {
       // A custom header plus JSON makes a cross-site form post impossible: it would need a CORS preflight, which we never grant.
@@ -167,6 +173,10 @@ const server = http.createServer(async (req, res) => {
         if (!str(body.prompt, 4000)) return send(res, 400, { error: "prompt must be 1 to 4000 characters" });
         return send(res, 200, await act(body));
       }
+      if (url.pathname === "/api/coach") {
+        if (!str(body.prompt, 12000)) return send(res, 400, { error: "prompt must be 1 to 12000 characters" });
+        return send(res, 200, await coach(body));
+      }
       if (url.pathname === "/api/grade") {
         if (!str(body.log, 1000) || !str(body.reply) || !LABELS.includes(body.expected)) return send(res, 400, { error: "log, reply and a known expected label are required" });
         return send(res, 200, await grade(body));
@@ -179,5 +189,5 @@ const server = http.createServer(async (req, res) => {
 });
 server.listen(PORT, "127.0.0.1", () => {
   console.log(`Walkthrough: http://127.0.0.1:${PORT}   (${REPLAY ? "replay only" : "live"})`);
-  console.log(`Actor  ${ACTOR}\nGrader ${GRADER}\nCache  ${Object.keys(cache).length} recorded call(s) in ${CACHE_FILE}`);
+  console.log(`Actor  ${ACTOR}\nGrader ${GRADER}\nCoach  ${COACH}\nCache  ${Object.keys(cache).length} recorded call(s) in ${CACHE_FILE}`);
 });

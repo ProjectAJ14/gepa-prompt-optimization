@@ -207,6 +207,17 @@
   .gbox { display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: var(--font-mono); color: var(--spot); }
   .stack { display: flex; align-items: stretch; justify-content: center; gap: 12px; flex-wrap: wrap; } .stack .pcard { width: 13em; display: flex; flex-direction: column; justify-content: center; } .stack .arrow { align-self: center; }
   .bignum { font-family: var(--font-mono); font-size: 2.4em; margin: 0; color: var(--ink); }
+  /* The role figure: the character whose turn it is, bottom right, on every screen that has a role. */
+  .role { position: fixed; right: 12px; bottom: 70px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+  .role .stick { height: 96px; }
+  .role span { font-family: var(--font-mono); font-size: 0.62em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--spot); background: var(--bg); padding: 0 4px; }
+  @media (max-width: 760px) { .role { display: none; } }
+  pre.fixedp { max-height: calc(100vh - 490px); overflow: auto; }
+  td.clip { max-width: 22em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 0.9em; }
+  .tablebox.small { max-height: calc(100vh - 450px); }
+  .dgrid.one { grid-template-columns: minmax(0, 1fr); max-width: 56em; margin: 0 auto; }
+  .dgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .card.sealed { text-align: center; min-width: 4.5em; flex: 0 0 auto; } .card.sealed p { font-family: var(--font-mono); font-size: 1.6em; margin: 0; color: var(--faint); }
   .chiprow { text-align: center; margin-top: 8px; }
   .cluster.two .card { flex: 1 1 300px; }
   .cast { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
@@ -240,6 +251,7 @@
 <main id="main" tabindex="-1"><div class="stage"><div class="slide" id="slide"></div></div></main>
 <aside class="notes" id="notes" hidden></aside>
 <div class="companion" id="companion" hidden></div>
+<div class="role" id="role" hidden></div>
 <footer>
   <button id="prev" type="button">&larr; Previous</button>
   <span class="tag" id="tag"></span>
@@ -289,100 +301,9 @@ const LOGS = [
   { id: 28, pipe: "beam-telemetry",  split: "test",  exp: "LATE_DATA",          text: "Watermark is 3h behind event time; 41% of events dropped as late" },
   { id: 29, pipe: "beam-telemetry",  split: "test",  exp: "RESOURCE_EXHAUSTED", text: "Worker lost: java.lang.OutOfMemoryError: GC overhead limit exceeded" },
   { id: 30, pipe: "beam-telemetry",  split: "test",  exp: "DATA_QUALITY",       text: "640 readings outside the allowed range for temp_c (above 1000)" },
-  { id: 31, pipe: "flink-sessions", split: "train", exp: "SCHEMA_DRIFT", text: "Cannot cast field 'amount' from STRING to DOUBLE: value 'N/A'", added: true },
-  { id: 32, pipe: "flink-sessions", split: "train", exp: "SCHEMA_DRIFT", text: "Avro reader: expected int for field 'version', found string", added: true },
 ];
 
 // Fixed model outputs per prompt version, so the demo never calls a model.
-const OUT = {
-  v2: {
-    1: ["UPSTREAM_FAILURE", "The executor was killed for using too much memory."],
-    2: ["SCHEMA_DRIFT", "The query refers to a column that is not in the input."],
-    3: ["UPSTREAM_FAILURE", "The checkpoint is far behind the source."],
-    4: ["UPSTREAM_FAILURE", "A partition is missing and the job ran on old data."],
-    5: ["UPSTREAM_FAILURE", "The storage service kept refusing requests."],
-    6: ["DATA_QUALITY", "Null values in a column that must not be null."],
-    7: ["UPSTREAM_FAILURE", "The warehouse refused the connection."],
-    8: ["DUPLICATES", "Several rows share the same id."],
-    9: ["SCHEMA_DRIFT", "The model refers to a column that does not exist."],
-    10: ["RESOURCE_EXHAUSTED", "The warehouse ran out of temporary disk space."],
-    11: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
-    12: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
-    13: ["UPSTREAM_FAILURE", "The task was killed for exceeding its memory limit."],
-    14: ["DATA_QUALITY", "Some order amounts are negative."],
-    15: ["UPSTREAM_FAILURE", "The payments service kept answering with errors."],
-    16: ["SCHEMA_DRIFT", "A source column changed its type."],
-    17: ["LATE_DATA", "The connector has not synced for much longer than its window."],
-    18: ["UPSTREAM_FAILURE", "The sync stopped because a usage quota was exceeded."],
-    19: ["DATA_QUALITY", "Several contact rows share one key."],
-    20: ["UPSTREAM_FAILURE", "The source service was unavailable."],
-    21: ["UPSTREAM_FAILURE", "A broker is down and partitions have no leader."],
-    22: ["UPSTREAM_FAILURE", "The topic stayed empty and the batch closed with no records."],
-    23: ["DATA_QUALITY", "A value has the wrong type."],
-    24: ["UPSTREAM_FAILURE", "A broker ran out of disk space."],
-    25: ["DATA_QUALITY", "Events arrived with an empty user_id."],
-    26: ["SCHEMA_DRIFT", "A value cannot be read as a number."],
-    27: ["SCHEMA_DRIFT", "A field holds the wrong kind of value."],
-    28: ["UPSTREAM_FAILURE", "Events arrive far behind the clock and are dropped."],
-    29: ["UPSTREAM_FAILURE", "A worker ran out of memory."],
-    30: ["DATA_QUALITY", "Readings fall outside the allowed range."],
-  },
-  v3: {
-    1: ["RESOURCE_EXHAUSTED", "The executor was killed for using too much memory."],
-    2: ["SCHEMA_DRIFT", "The query refers to a column that is not in the input."],
-    3: ["LATE_DATA", "The checkpoint is far behind the source."],
-    4: ["LATE_DATA", "A partition is missing and the job ran on old data."],
-    5: ["UPSTREAM_FAILURE", "The storage service kept refusing requests."],
-    6: ["DATA_QUALITY", "Null values in a column that must not be null."],
-    7: ["UPSTREAM_FAILURE", "The warehouse refused the connection."],
-    8: ["DATA_QUALITY", "Several rows share the same id."],
-    9: ["SCHEMA_DRIFT", "The model refers to a column that does not exist."],
-    10: ["RESOURCE_EXHAUSTED", "The warehouse ran out of temporary disk space."],
-    11: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
-    12: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
-    13: ["RESOURCE_EXHAUSTED", "The task was killed for exceeding its memory limit."],
-    14: ["DATA_QUALITY", "Some order amounts are negative."],
-    15: ["UPSTREAM_FAILURE", "The payments service kept answering with errors."],
-    16: ["SCHEMA_DRIFT", "A source column changed its type."],
-    17: ["LATE_DATA", "The connector has not synced for much longer than its window."],
-    18: ["RESOURCE_EXHAUSTED", "The sync stopped because a usage quota was exceeded."],
-    19: ["DATA_QUALITY", "Several contact rows share one key."],
-    20: ["UPSTREAM_FAILURE", "The source service was unavailable."],
-    21: ["UPSTREAM_FAILURE", "A broker is down and partitions have no leader."],
-    22: ["LATE_DATA", "The topic stayed empty and the batch closed with no records."],
-    23: ["DATA_QUALITY", "A value has the wrong type."],
-    24: ["RESOURCE_EXHAUSTED", "A broker ran out of disk space."],
-    25: ["DATA_QUALITY", "Events arrived with an empty user_id."],
-    26: ["DATA_QUALITY", "A value cannot be read as a number."],
-    27: ["DATA_QUALITY", "A field holds the wrong kind of value."],
-    28: ["LATE_DATA", "Events arrive far behind the clock and are dropped."],
-    29: ["RESOURCE_EXHAUSTED", "A worker ran out of memory."],
-    30: ["DATA_QUALITY", "Readings fall outside the allowed range."],
-    31: ["DATA_QUALITY", "The value N/A is not a number."],
-    32: ["DATA_QUALITY", "A field holds the wrong kind of value."],
-  },
-  v4: {
-    22: ["LATE_DATA", "The topic stayed empty for hours and the batch window closed with zero records, so the data is late."],
-    23: ["SCHEMA_DRIFT", "A value has the wrong type."],
-    26: ["SCHEMA_DRIFT", "A value cannot be read as a number."],
-    27: ["SCHEMA_DRIFT", "A field holds the wrong kind of value."],
-    31: ["SCHEMA_DRIFT", "The value N/A is not a number."],
-    32: ["SCHEMA_DRIFT", "A field holds the wrong kind of value."],
-  },
-};
-OUT.v4 = Object.assign({}, OUT.v3, OUT.v4);
-// A rejected candidate: right labels, replies that ramble.
-OUT.B = {};
-for (const id of Object.keys(OUT.v3)) {
-  OUT.B[id] = [OUT.v3[id][0], OUT.v3[id][1] + " I considered every other label in turn and ruled each of them out before settling on this one."];
-}
-
-const rawOf = (v, id) => {
-  const o = OUT[v][id];
-  if (o === undefined) return ""; // no mocked output for this log: fails every gate instead of throwing
-  return typeof o === "string" ? o : JSON.stringify({ label: o[0], reason: o[1] });
-};
-
 // Gates first, then quality: a failed gate keeps the score under 0.5.
 function scoreReply(raw, expected) {
   let o = null;
@@ -400,12 +321,6 @@ function scoreReply(raw, expected) {
   }
   return { raw, json, allowed, correct, score, words: json ? o.reason.trim().split(/\s+/).length : null };
 }
-function judge(v, log) { return scoreReply(rawOf(v, log.id), log.exp); }
-const inSet = (l, ext) => !l.added || ext;
-const mean = (v, split, ext) => {
-  const rows = LOGS.filter((l) => l.split === split && inSet(l, ext));
-  return rows.reduce((s, l) => s + judge(v, l).score, 0) / rows.length;
-};
 const f3 = (x) => x.toFixed(3);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 
@@ -456,20 +371,6 @@ const segsHtml = (segs) => segs.map((s) => {
 }).join("");
 const P1 = v2Segs(0);
 
-const ADD3_WHY = [
-  "Logs 1 and 13 (an OOMKilled executor, a memory limit) were called UPSTREAM_FAILURE.",
-  "Logs 3 and 4 (checkpoint lag, a missing partition) were called UPSTREAM_FAILURE.",
-  "Log 8 got an invented label, DUPLICATES.",
-  "The score gives less credit to long reasons, so it adds a length limit.",
-];
-const ADD3 = [
-  "A task or executor killed by a memory or CPU limit is RESOURCE_EXHAUSTED.",
-  "Lag, a missing file or an empty topic is LATE_DATA.",
-  "Duplicates or nulls in a data test are DATA_QUALITY. Never invent a label.",
-  "Keep the reason to 15 words or fewer.",
-];
-const ADD4 = ["A field whose type disagrees with the schema is SCHEMA_DRIFT."];
-
 // Stick figures for the GEPA screens: one head, one body, a hat or prop per role. Colours are role tokens.
 const STICK = {
   teacher: `<path d="M27 40h26v7H27z" fill="var(--viz-3)"/><rect x="52" y="76" width="24" height="18" fill="var(--viz-2-soft)"/><path d="M56 76v-7h7v7" fill="none"/>`,
@@ -488,10 +389,11 @@ const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">$
 /* ---------- live model calls ----------
    Versions 1 and 2 run for real through server.mjs, which calls `claude -p`: one model acts, a different one
    grades. Nothing is mocked on these screens. If the server is not running, they say so instead of inventing output. */
-const R = { status: "checking", actor: "", grader: "", mode: "live", act: { v1: {}, v2: {} }, grade: { v1: {}, v2: {} }, err: {}, busy: new Set(), since: {}, recorded: 0, confirmReset: false, note: "" };
+const blankRuns = () => ({ v1: {}, v2: {}, v3: {} });
+const R = { status: "checking", actor: "", grader: "", mode: "live", act: blankRuns(), grade: blankRuns(), cand: { v3: null }, coachModel: "", coachRes: null, err: {}, busy: new Set(), since: {}, recorded: 0, confirmReset: false, note: "" };
 const nice = (m) => String(m || "").replace(/^claude-/, "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
 const segText = (segs) => segs.map((x) => x.t).join("");
-const livePrompt = (v) => segText(v === "v1" ? v2Segs(0) : v2Segs(5));
+const livePrompt = (v) => (v === "v1" ? segText(v2Segs(0)) : v === "v2" ? segText(v2Segs(5)) : R.cand.v3 ? R.cand.v3.prompt : "");
 const ALL = LOGS.filter((l) => !l.added);
 const busyAdd = (key) => { R.busy.add(key); R.since[key] = Date.now(); };
 async function api(url, body) {
@@ -505,7 +407,7 @@ const redraw = () => { if (redrawQueued) return; redrawQueued = true; requestAni
 async function pool(jobs, n) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, jobs.length) }, async () => { while (i < jobs.length) await jobs[i++](); })); }
 // Asks the actor for each log (and, when asked, the grader for each reply). Safe to call on every draw: it skips what is done, running or failed.
 function ensure(v, ids, withGrade) {
-  if (R.status !== "live") return;
+  if (R.status !== "live" || !livePrompt(v)) return;
   const jobs = [];
   for (const id of ids) {
     const log = LOGS.find((l) => l.id === id), ka = `a:${v}:${id}`, kg = `g:${v}:${id}`;
@@ -626,7 +528,7 @@ function titleActions() {
 async function startEmpty() {
   try {
     const r = await api("/api/reset", {});
-    R.act = { v1: {}, v2: {} }; R.grade = { v1: {}, v2: {} }; R.err = {}; R.recorded = 0;
+    R.act = blankRuns(); R.grade = blankRuns(); R.cand = { v3: null }; R.coachRes = null; R.err = {}; R.recorded = 0;
     S.st = {}; S.open = new Set();
     R.note = `Cleared ${r.cleared} recorded call${r.cleared === 1 ? "" : "s"}${r.backup ? `. Backup: .cache/${r.backup}` : ""}. Every call from here is live.`;
   } catch (e) { R.note = "Could not clear: " + String(e.message || e); }
@@ -637,6 +539,100 @@ function refreshHealth() {
   fetch("/api/health").then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.recorded !== R.recorded) { R.recorded = j.recorded; redraw(); } }).catch(() => {});
 }
 const sampleDone = (v) => SAMPLE.every((id) => R.act[v][id]);
+
+const markCell = (b) => `<td class="num"><span class="${b ? "ok" : "bad"}">${b ? "pass" : "fail"}</span></td>`;
+const rowFirst = (key, open, id, canOpen) => canOpen ? `<button class="rowbtn" aria-expanded="${open}" aria-label="${open ? "Hide" : "Show"} the prompt, reply and judge for log ${id}"><svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>${id}</button>` : id;
+// Two versions on the same logs, side by side. A row opens to show version b's prompt, reply and note.
+function compareRows(a, b, idList) {
+  return idList.map((id) => {
+    const l = LOGS.find((x) => x.id === id), ja = liveJudge(a, l), jb = liveJudge(b, l);
+    const key = `${b}:${id}`, canOpen = !!jb, open = canOpen && S.open.has(key);
+    const cell = (j, v) => j ? `${markCell(j.json)}${markCell(j.correct)}<td class="num">${f3(j.score)}</td>` : `<td colspan="3" class="faint num">${R.err[`a:${v}:${id}`] ? "the call failed" : spinner + " waiting…"}</td>`;
+    return `<tr${canOpen ? ` class="clickable" data-act="row:${key}" data-row="${key}"` : ""}><td class="num">${rowFirst(key, open, id, canOpen)}</td><td class="log" title="${esc(l.text)}">${esc(l.text)}</td><td class="num">${esc(l.exp)}</td>${cell(ja, a)}${cell(jb, b)}</tr>${open ? detailRow(b, l, jb, 9) : ""}`;
+  }).join("");
+}
+const ROLE_NAME = { teacher: "Teacher", student: "Student", grader: "Grader", coach: "Coach", judge: "Judge" };
+
+/* ---------- the loop, by hand: one round with real models ----------
+   Teacher = the 30 logs. Student = the actor running a prompt. Grader = the three gates plus the judge's note.
+   Coach = a third model that reads the failures and rewrites the prompt. Judge = a rule in code. */
+const MINI = [1, 2, 3, 6, 7]; // five train logs, one per label: the minibatch the Coach learns from
+const miniLogs = () => MINI.map((id) => LOGS.find((l) => l.id === id));
+const ids = (split) => ALL.filter((l) => l.split === split).map((l) => l.id);
+const jsonWhy = (text) => (text.trim().startsWith("```") ? "the reply is wrapped in a code fence, so a script cannot parse it" : "the reply is not JSON with a label and a reason");
+const miniReady = () => MINI.every((id) => { const j = liveJudge("v2", LOGS.find((l) => l.id === id)); return j && j.right !== null; });
+function coachPrompt() {
+  const cases = miniLogs().map((l, n) => {
+    const a = R.act.v2[l.id], j = liveJudge("v2", l), g = R.grade.v2[l.id];
+    const gate = (name, ok, why) => `${name}: ${ok ? "pass" : "fail"}${!ok && why ? ` (${why})` : ""}`;
+    return [`Example ${n + 1}`, `Log: ${l.text}`, `Right answer: ${l.exp}`, `Reply: ${a.text.trim().slice(0, 1200)}`,
+      `Checks: ${gate("is JSON", j.json, jsonWhy(a.text))}; ${gate("label allowed", j.allowed)}; ${gate("label correct", j.correct)}`,
+      `Grader's note: ${g.rightIdea ? "right idea" : "wrong idea"}. ${g.why}`].join("\n");
+  }).join("\n\n");
+  return ["You improve prompts. Below is a prompt that classifies data-pipeline failure logs, and what happened when a model ran it on five examples.",
+    "For each example you get the log, the right answer, the model's reply, which checks failed, and a note from the grader.", "",
+    "THE PROMPT", "<<<", livePrompt("v2"), ">>>", "", "THE RESULTS", cases, "",
+    "YOUR JOB", "Write an improved version of the prompt.",
+    "- Change only what the results justify. Keep the parts that work.",
+    "- Add new rules as new lines. Do not rewrite the rest.",
+    "- Keep the {{log}} placeholder exactly once, in the tags at the end, as it is now.",
+    "- Do not copy the example logs into the prompt.", "",
+    "Reply in exactly this format:", "<why>one or two sentences: what the failures have in common</why>", "<prompt>the full improved prompt</prompt>"].join("\n");
+}
+// The Coach's reply is text: pull out the prompt and the reason, and refuse anything that lost the placeholder.
+function parseCoach(text) {
+  const pick = (tag) => { const m = text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`)); return m ? m[1].trim() : ""; };
+  const prompt = pick("prompt"), why = pick("why");
+  if (!prompt) return { error: "the Coach's reply had no <prompt> block" };
+  if (prompt.split("{{log}}").length !== 2) return { error: "the new prompt must contain {{log}} exactly once" };
+  return { prompt, why };
+}
+// Which lines of the new prompt are new? They are the ones the Coach added or changed.
+function diffSegs(parent, child) {
+  const had = new Set(parent.split("\n").map((x) => x.trim()).filter(Boolean));
+  const now = new Set(child.split("\n").map((x) => x.trim()).filter(Boolean));
+  const segs = [];
+  child.split("\n").forEach((line, i) => {
+    if (i) segs.push({ t: "\n" });
+    const t = line.trim();
+    if (line.includes("{{log}}")) { const [a, b] = line.split("{{log}}"); segs.push({ t: a }, { t: "{{log}}", cls: "var" }, { t: b }); }
+    else segs.push({ t: line, hot: !!t && !had.has(t) });
+  });
+  return { segs, added: [...now].filter((x) => !had.has(x)).length, removed: [...had].filter((x) => !now.has(x)).length };
+}
+async function runCoach(fresh) {
+  const key = "c:v3";
+  if (R.busy.has(key)) return;
+  busyAdd(key); delete R.err[key]; redraw();
+  try {
+    const input = coachPrompt();
+    const res = await api("/api/coach", { prompt: input, fresh: fresh === true });
+    res.input = input;
+    const parsed = parseCoach(res.text);
+    R.coachRes = res;
+    if (parsed.error) { R.cand.v3 = null; R.err[key] = parsed.error; }
+    else { R.cand.v3 = parsed; R.act.v3 = {}; R.grade.v3 = {}; for (const k of Object.keys(R.err)) if (/^[ag]:v3:/.test(k)) delete R.err[k]; }
+  } catch (e) { R.err[key] = String(e.message || e); }
+  R.busy.delete(key); redraw();
+}
+function maybeCoach() {
+  if (R.status !== "live" || R.coachRes || R.busy.has("c:v3") || R.err["c:v3"] || !miniReady()) return;
+  runCoach(false);
+}
+// A screen reached by the Jump menu may need version 3 before the Coach slide has run: ask for the five results, then the Coach (both recorded after the first run).
+const needCand = () => { ensure("v2", MINI, true); maybeCoach(); };
+const idle = async () => { const t0 = Date.now(); while (R.busy.size && Date.now() - t0 < 600000) await new Promise((r) => setTimeout(r, 400)); };
+// Warm-up for the whole walkthrough: every call the screens will make, in the order the loop makes them.
+async function warmAll() {
+  R.note = "";
+  ensure("v1", ids("train").concat(ids("val")), true); ensure("v2", ALL.map((l) => l.id), true);
+  await idle(); maybeCoach(); await idle();
+  if (R.cand.v3) { ensure("v3", ALL.map((l) => l.id), true); await idle(); }
+  redraw();
+}
+const miniMean = (v) => { const js = miniLogs().map((l) => liveJudge(v, l)); return js.some((j) => !j) ? null : js.reduce((t, j) => t + j.score, 0) / js.length; };
+const splitMean = (v, split) => liveMean(v, split);
+
 
 /* ---------- state: one step counter per screen ---------- */
 const S = { i: 0, st: {}, notes: false, last: null, open: new Set(), focusRow: null };
@@ -737,7 +733,8 @@ const SCREENS = [
   },
   {
     id: "score", title: "We need a score", tag: "live", live: true, steps: 4,
-    hints: [["curious", "Twelve logs. Hold on to that number."], ["focused", "No answer key, no score."], ["wink", "Split by pipeline, not by row."],
+    role: () => "teacher",
+    hints: [["curious", "Thirty logs. The Teacher brings them."], ["focused", "No answer key, no score."], ["wink", "Split by pipeline, not by row."],
       ["surprised", "Same replies, now with a score next to them."], ["thinking", "Same logs, new prompt, new numbers."]],
     notes: "This is the real subject of the talk. Step by step: examples, the right answer, the split by pipeline, then score v1 and v2 with real model replies. The judge column is a second model reading each reply for meaning. The gate columns are code. Where they disagree is the point. Click a row to open it: the exact prompt sent, the full reply, how the score was worked out, and the judge's reasoning.",
     effect: (st) => { const ids = ALL.map((l) => l.id); if (st >= 3) ensure("v1", ids, true); if (st >= 4) ensure("v2", ids, true); },
@@ -780,103 +777,134 @@ const SCREENS = [
     },
   },
   {
-    id: "etl", title: "The pipeline around the optimizer", tag: "example", steps: 3,
-    hints: [["focused", "Extract: examples with the right answer."], ["thinking", "Transform: generate, score, reflect."],
-      ["neutral", "Load: a file and a diff, reviewed by a person."], ["worried", "Set limits first, or it cannot know them."]],
-    notes: "Extract, transform, load. Reveal one at a time. The optimizer is one box in the middle. Everything else is data work. Then the caps before the first run.",
+    id: "cast", title: "Who plays whom", tag: "live", steps: 5,
+    hints: [["curious", "The Teacher is you."], ["focused", "The Student is a real model."], ["thinking", "The Grader is code, plus a second opinion."],
+      ["happy", "The Coach is a third model."], ["focused", "The Judge is a rule in code."], ["wink", "One round, by hand, with real models."]],
+    notes: "Now the team from the last slide gets real names. Teacher: you, with the 30 logs split 10, 10, 10. Student: Haiku 4.5 running prompt version 2, which is candidate 0. Grader: three checks in code plus a note from Haiku 5.5. Coach: a third model that reads the failures and rewrites the prompt. Judge: a rule in code. Be clear on the last step: this is GEPA's loop done by hand, one round, with real model calls. It is not the gepa package.",
+    role: (st) => ["teacher", "student", "grader", "coach", "judge", null][st],
     render: (st) => {
-      const cards = [
-        `<div class="card reveal"><h3>Extract</h3><ul>
-          <li>Collect real examples. Here, failure logs.</li>
-          <li>Write the expected answer next to each one.</li>
-          <li>Split by source pipeline into train, validation and test.</li></ul></div>`,
-        `<div class="card reveal"><h3>Transform</h3><ul>
-          <li>Generate: run the prompt on every example.</li>
-          <li>Score: gates first, then quality.</li>
-          <li>Reflect: a second model reads the failures and proposes an edit.</li></ul></div>`,
-        `<div class="card reveal"><h3>Load</h3><ul>
-          <li>Save the best candidate as a file, with a diff.</li>
-          <li>Look at the test split once.</li>
-          <li>A person reviews before anything ships.</li></ul></div>`,
+      const cast = [
+        ["teacher", "Teacher", "You", "30 logs with the right answers: 10 to learn from (train), 10 to choose with (validation), 10 kept sealed (test)."],
+        ["student", "Student", nice(R.actor) || "Claude Haiku 4.5", "Runs prompt version 2, the one we start from. In GEPA's words, candidate 0."],
+        ["grader", "Grader", "Three checks in code, plus " + (nice(R.grader) || "Claude Haiku 5.5"), "Is it JSON? Is the label allowed? Is it right? Then a note on whether the idea was right, and why."],
+        ["coach", "Coach", nice(R.coachModel) || "Claude Sonnet 5.5", "Reads the failures and the Grader's notes, then rewrites the prompt. It never sees validation or test."],
+        ["judge", "Judge", "A rule in code", "Keeps the new prompt only if its score improved. Picks by validation score. Opens test once, at the end."],
       ];
-      return `
-      ${head("Setting it up", "It is an <em>ETL</em> pipeline")}
-      <div class="cluster">${cards.slice(0, Math.min(st + 1, 3)).join("")}</div>
-      ${st >= 3 ? `<div class="note warnnote reveal"><b>Set limits before the first run.</b> Maximum model calls, maximum minutes, and the size and time your product can live with. If a limit is in neither the score nor the caps, the optimizer cannot know it exists.</div>` : ""}`;
+      const member = (m, k) => `<div class="member reveal${k === st && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${esc(m[2])}</p><p class="gterm"><span>Does</span>${esc(m[3])}</p></div>`;
+      const honest = st >= 5 ? `<div class="note warnnote reveal"><b>What is real, and what is simplified.</b> Every model call and every score on the next slides is real. The loop is GEPA's, run by hand for one round, so you can see each role at work. It is not the <code>gepa</code> package: that runs many rounds and keeps a pool of candidates that each do well on different examples. We have two candidates, so the Judge simply compares them.</div>` : "";
+      return `${head("Round 1", st >= 5 ? "One round, <em>by hand</em>" : "The team gets <em>real names</em>", "", true)}
+        <div class="cast">${cast.slice(0, Math.min(st + 1, 5)).map(member).join("")}</div>${honest}`;
     },
   },
   {
-    id: "run1", title: "Optimizer, run 1", tag: "example", steps: 4,
-    hints: [["curious", "It reads failures, not scores alone."], ["neutral", "Row zero is where we start."], ["happy", "Candidate 1 fixes what it saw."],
-      ["worried", "Candidate 2 got wordy. The score fell."], ["happy", "Kept the best on validation."]],
-    notes: "Click Run, or press Next to reveal one row at a time. Point at the third row: the score fell, because replies got long. It is rejected.",
+    id: "student-grader", title: "Student and Grader: the first try", tag: "live", live: true, steps: 3,
+    hints: [["curious", "The Teacher picks five training logs."], ["focused", "The Student answers with prompt version 2."], ["thinking", "The Grader marks each one and says why."], ["surprised", "This is what the Coach will read."]],
+    notes: "Teacher: five training logs, one for each label. Student: Haiku 4.5 answers each with prompt version 2, and its reply is its working. Grader: the three code checks plus Haiku 5.5's note on why. Click a row to open the exact prompt, reply and score. The last step is the point: these five results, with the notes, are what the Coach reads next.",
+    role: (st) => ["teacher", "student", "grader", "grader"][st],
+    effect: (st) => { if (st >= 1) ensure("v2", MINI, st >= 2); },
     render: (st) => {
-      const rows = [
-        { n: 0, read: "Starting prompt (v2)", edit: "None", tr: mean("v2", "train"), va: mean("v2", "val"), verdict: "start" },
-        { n: 1, read: "Logs 1, 3 and 4 (killed job, lag, missing partition) were called UPSTREAM_FAILURE. Log 8 got an invented label.", edit: ADD3.join(" "), tr: mean("v3", "train"), va: mean("v3", "val"), verdict: "kept" },
-        { n: 2, read: "Reasons look thin.", edit: "Think step by step and explain at length.", tr: mean("B", "train"), va: mean("B", "val"), verdict: "dropped: replies grew and the score fell" },
-      ];
-      const shown = rows.slice(0, Math.min(st, 3));
-      return `
-      ${head("Run 1", "Let the optimizer read the <em>failures</em>", "It only sees the train split. The validation split picks the winner. Nobody looks at test yet.")}
-      ${st === 0 ? `<div class="row"><button class="primary" data-act="run1">Run the optimizer</button></div><p class="source mono">Illustrative run, not a live one</p>` : `<p class="source mono">Illustrative run, not a live one</p>`}
-      ${shown.length ? `<div class="scroll"><table><thead><tr><th>#</th><th>What it read</th><th>Edit it proposed</th><th class="num">train</th><th class="num">val</th><th>Kept?</th></tr></thead>
-      <tbody>${shown.map((r) => `<tr class="reveal"><td class="num">${r.n}</td><td>${esc(r.read)}</td><td>${esc(r.edit)}</td><td class="num">${f3(r.tr)}</td><td class="num">${f3(r.va)}</td><td class="${r.verdict === "kept" ? "ok" : r.verdict === "start" ? "faint" : "bad"}">${esc(r.verdict)}</td></tr>`).join("")}</tbody></table></div>` : ""}
-      ${st >= 4 ? `<div class="note reveal">Best on validation: candidate 1. Saved as <b>v3</b>, with a diff for a person to review. Real selection rules are more involved than this table.</div>` : ""}`;
+      const rows = miniLogs().map((l) => {
+        const j = st >= 1 ? liveJudge("v2", l) : null, a = R.act.v2[l.id];
+        const open = !!j && st >= 2 && S.open.has(`v2:${l.id}`), canOpen = !!j && st >= 2;
+        const cols = 3 + (st === 1 ? 1 : st >= 2 ? 6 : 0);
+        let tail = "";
+        if (st === 1) tail = `<td class="clip">${a ? esc(a.text.trim().replace(/\s+/g, " ")) : R.err[`a:v2:${l.id}`] ? "the call failed" : spinner + " answering…"}</td>`;
+        if (st >= 2) tail = j ? `${markCell(j.json)}${markCell(j.allowed)}${markCell(j.correct)}<td class="num">${f3(j.score)}</td><td class="clip" title="${esc(j.why)}">${j.right === null ? spinner + " judging…" : esc((j.right ? "right idea. " : "wrong idea. ") + j.why)}</td>` : `<td colspan="5" class="faint">${spinner} waiting…</td>`;
+        return `<tr${canOpen ? ` class="clickable" data-act="row:v2:${l.id}" data-row="v2:${l.id}"` : ""}><td class="num">${rowFirst(`v2:${l.id}`, open, l.id, canOpen)}</td><td class="log" title="${esc(l.text)}">${esc(l.text)}</td><td class="num">${esc(l.exp)}</td>${tail}</tr>${open ? detailRow("v2", l, j, cols) : ""}`;
+      }).join("");
+      const th = `<th>#</th><th>Log</th><th class="num">Right answer</th>${st === 1 ? "<th>Student's reply</th>" : st >= 2 ? '<th class="num">json</th><th class="num">label ok</th><th class="num">correct</th><th class="num">score</th><th>Grader\'s note</th>' : ""}`;
+      const m = miniMean("v2");
+      const captions = ["Five training logs, one for each label. These are the examples this round learns from. Everything else stays out of sight.",
+        `The Student, ${esc(nice(R.actor) || "Claude Haiku 4.5")}, answers each log with prompt version 2. Its reply is its working, and the loop keeps it.`,
+        `The Grader marks each reply: three checks in code, plus a note from ${esc(nice(R.grader) || "Claude Haiku 5.5")} on whether the idea was right, and why.`,
+        m === null ? "Marking…" : `Mean score on these five: <b>${f3(m)}</b>. ${miniLogs().filter((l) => { const j = liveJudge("v2", l); return j && j.json; }).length} of 5 replies parse as JSON. These results, with the notes, are exactly what the Coach reads next.`];
+      return `${head("Round 1", ["The Teacher picks <em>five logs</em>", "The Student <em>answers</em>", "The Grader <em>marks and explains</em>", "What the Coach will <em>read</em>"][st], "", true)}
+        <div class="scroll tablebox small" tabindex="0" aria-label="The five training logs"><table class="compact"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>
+        ${st >= 2 ? `<p class="source mono">Click a row: the prompt, the reply, the score and the Grader's note</p>` : ""}${retryRow()}${st >= 1 ? offlineNote() : ""}
+        <div class="note reveal">${captions[st]}</div>`;
     },
   },
   {
-    id: "v3", title: "Version 3: the optimizer edits the prompt", tag: "example", steps: 6,
-    hints: [["curious", "Same prompt. Now it starts editing."], ["focused", "Each rule traces back to a failure."], ["focused", "Each rule traces back to a failure."],
-      ["focused", "Each rule traces back to a failure."], ["happy", "Four rules. Now the scores."], ["wink", "Test is still hidden. Resist."], ["surprised", "Validation looked perfect. Test did not."]],
-    notes: "Start from v2. Each Next, the optimizer adds one rule, with the failure that caused it. Then the scores, then look at the test split once. Validation looked perfect, test did not. The failing logs are type mismatches the optimizer never saw an example of.",
+    id: "coach", title: "The Coach rewrites the prompt", tag: "live", live: true, steps: 2,
+    hints: [["curious", "The Coach reads the five results."], ["focused", "Then it writes a better prompt."], ["happy", "The new lines are the lesson."]],
+    notes: "Step 0: the exact text the Coach is given: the current prompt and the five results. It does not see validation or test. Step 1: its reply, live. Step 2: the new prompt, with what it added highlighted, and its one-line reason. Click Run now to ask the Coach again: a different run can write a different prompt. This is the step you used to do by hand.",
+    role: () => "coach",
+    effect: (st) => { ensure("v2", MINI, true); if (st >= 1) maybeCoach(); },
     render: (st) => {
-      const n = Math.min(st, 4);
-      const t2 = mean("v2", "test"), t3 = mean("v3", "test");
-      const failing = LOGS.filter((l) => l.split === "test" && !judge("v3", l).correct);
-      return `
-      ${head("Version 3", st >= 5 ? "Version 3, <em>scored</em>" : n === 0 ? "Start from <em>version 2</em>" : `The optimizer adds rule <em>${n}</em> of 4`, "", true)}
-      ${st >= 5 ? "" : n >= 1 ? `<p class="source reveal"><b>Why:</b> ${esc(ADD3_WHY[n - 1])}</p>` : `<p class="source">Same prompt as before. Now the optimizer reads the train failures and starts editing.</p>`}
-      ${st >= 5 ? "" : `<pre class="prompt small">${segsHtml(v2Segs(5, ADD3.slice(0, n), n - 1, false))}</pre>`}
-      ${st >= 5 ? `<div class="block scroll reveal"><table><thead><tr><th>Prompt</th><th class="num">train</th><th class="num">val</th><th class="num">test</th></tr></thead><tbody>
-        <tr><td>v2 (you wrote it)</td><td class="num">${f3(mean("v2", "train"))}</td><td class="num">${f3(mean("v2", "val"))}</td><td class="num">${st >= 6 ? f3(t2) : "hidden"}</td></tr>
-        <tr><td>v3 (optimizer)</td><td class="num">${f3(mean("v3", "train"))}</td><td class="num">${f3(mean("v3", "val"))}</td><td class="num">${st >= 6 ? f3(t3) : "hidden"}</td></tr></tbody></table></div>` : ""}
-      ${st === 5 ? `<div class="row"><button class="primary" data-act="goto:6">Look at the test split (once)</button></div>` : ""}
-      ${st >= 6 ? `<div class="note warnnote reveal">Validation looked perfect. Test did not. ${failing.length} of ${LOGS.filter((l) => l.split === "test").length} test logs missed. For example, log ${failing[0].id} (${esc(failing[0].text)}) was called ${esc(OUT.v3[failing[0].id][0])}; the answer is ${esc(failing[0].exp)}. The optimizer had never seen a type mismatch. That is missing data, not a missing sentence.</div>` : ""}`;
+      const key = "c:v3", running = R.busy.has(key), res = R.coachRes, err = R.err[key];
+      const inputText = miniReady() ? coachPrompt() : "";
+      const inBox = `<div class="dbox"><h3>Input prompt · what the Coach reads</h3>${inputText ? `<pre tabindex="0">${esc(inputText)}</pre>` : `<div class="boxfix">${loader("Waiting for the five results…", "g:v2:" + MINI[0])}</div>`}</div>`;
+      const off = R.status !== "live" || R.mode === "replay";
+      const runBtn = `<button class="tab runnow" data-act="coachnow" ${running || off ? "disabled" : ""} title="${off ? (R.mode === "replay" ? "Replay mode never calls a model" : "Not connected to the server") : "Ask the Coach again and ignore the recording"}">${running ? spinner + "Running…" : "Run now"}</button>`;
+      const outBox = `<div class="dbox"><h3>Coach's reply · ${esc(nice(res ? res.model : R.coachModel))}</h3>${running || (!res && !err) ? `<div class="boxfix">${loader(`${nice(R.coachModel) || "The Coach"} is reading and writing…`, key)}</div>` : err && !res ? `<pre>The call failed: ${esc(err)}</pre>` : `<pre tabindex="0">${esc(res.text.trim())}</pre>`}
+        <div class="runrow">${res && !running ? `<span class="meta">${esc(metaLine(res))}</span>` : "<span></span>"}${runBtn}</div></div>`;
+      if (st === 0) return `${head("Round 1", "The Coach <em>reads</em> the five results", `${esc(nice(R.coachModel) || "Claude Sonnet 5.5")} sees the prompt and the five results: log, right answer, reply, checks and note. It never sees validation or test.`, true)}<div class="dgrid one">${inBox}</div>${offlineNote()}`;
+      if (st === 1) return `${head("Round 1", "Then it <em>writes</em> a better prompt", "", true)}<div class="dgrid two">${inBox}${outBox}</div>${retryRow()}${offlineNote()}`;
+      const c = R.cand.v3;
+      if (!c) return `${head("Round 1", "Version 3", "", true)}<div class="dgrid one">${outBox}</div>${retryRow()}${offlineNote()}`;
+      const d = diffSegs(livePrompt("v2"), c.prompt);
+      return `${head("Round 1", "Version 3: the Coach's <em>lesson</em>", "", true)}
+        <pre class="prompt small fixedp reveal" tabindex="0">${segsHtml(d.segs)}</pre>
+        <div class="note reveal"><b>Why, in the Coach's words:</b> ${esc(c.why || "no reason given")}<br><span class="faint">${d.added} line${d.added === 1 ? "" : "s"} new or changed (green), ${d.removed} dropped. ${runBtn}</span></div>`;
     },
   },
   {
-    id: "fixdata", title: "Fix the data, run again", tag: "example", steps: 4,
-    hints: [["thinking", "The gap is missing data, not missing words."], ["neutral", "Row zero is version 3 on the bigger train set."], ["happy", "One new rule, from two new examples."],
-      ["focused", "Version 4: one more rule, appended."], ["worried", "We peeked at test. That number is not clean."]],
-    notes: "Two training logs that show a type mismatch. Run again, the optimizer adds one rule, then the table. Then be honest: we peeked at test to find this, so its test number is no longer clean.",
+    id: "retry", title: "The Student tries again", tag: "live", live: true, steps: 1,
+    hints: [["curious", "Same five logs, new prompt."], ["surprised", "Before and after, side by side."]],
+    notes: "The Student runs the same five logs with version 3, and the Grader marks them again. Before and after, side by side. Click a row to open the exact version 3 prompt, the reply and the note. Do not say it worked until the numbers say so.",
+    role: (st) => (st === 0 ? "student" : "grader"),
+    effect: () => { needCand(); if (R.cand.v3) ensure("v3", MINI, true); },
     render: (st) => {
-      const added = LOGS.filter((l) => l.added);
-      const rows = [
-        { n: 0, read: "Starting prompt (v3), train set now 12 logs", edit: "None", tr: mean("v3", "train", true), va: mean("v3", "val"), verdict: "start" },
-        { n: 1, read: "Logs 31 and 32 (type mismatches) were called DATA_QUALITY.", edit: ADD4.join(" "), tr: mean("v4", "train", true), va: mean("v4", "val"), verdict: "kept" },
-      ];
-      const shown = rows.slice(0, Math.min(st, 2));
-      const t = (v) => f3(mean(v, "test"));
-      const optTable = `<div class="scroll"><table class="compact"><thead><tr><th>#</th><th>What it read</th><th>Edit it proposed</th><th class="num">train</th><th class="num">val</th><th>Kept?</th></tr></thead>
-        <tbody>${shown.map((r) => `<tr class="reveal"><td class="num">${r.n}</td><td>${esc(r.read)}</td><td style="white-space:normal">${esc(r.edit)}</td><td class="num">${f3(r.tr)}</td><td class="num">${f3(r.va)}</td><td class="${r.verdict === "kept" ? "ok" : "faint"}">${esc(r.verdict)}</td></tr>`).join("")}</tbody></table></div>`;
-      const logs = `<div class="scroll"><table class="compact"><thead><tr><th>#</th><th>Pipeline</th><th>Split</th><th>Log</th><th class="num">Expected</th></tr></thead><tbody>
-        ${added.map((l) => `<tr><td class="num">${l.id}</td><td>${esc(l.pipe)}</td><td>${splitPill(l.split)}</td><td class="log" title="${esc(l.text)}">${esc(l.text)}</td><td class="num">${esc(l.exp)}</td></tr>`).join("")}</tbody></table></div>`;
-      if (st === 3) {
-        return `${head("Version 4", "One more rule, <em>appended</em>", "", true)}
-          <pre class="prompt small reveal">${segsHtml(v2Segs(5, ADD3.concat(ADD4), ADD3.length, false))}</pre>`;
-      }
-      if (st >= 4) {
-        return `${head("Version 4, scored", "The number you <em>cannot trust</em>", "", true)}
-          <div class="block scroll reveal"><table><thead><tr><th>Prompt</th><th class="num">val</th><th class="num">test</th></tr></thead><tbody>
-            <tr><td>v2</td><td class="num">${f3(mean("v2", "val"))}</td><td class="num">${t("v2")}</td></tr>
-            <tr><td>v3</td><td class="num">${f3(mean("v3", "val"))}</td><td class="num">${t("v3")}</td></tr>
-            <tr><td>v4</td><td class="num">${f3(mean("v4", "val"))}</td><td class="num warn">${t("v4")} <span class="pill test">peeked</span></td></tr></tbody></table></div>
-          <div class="note warnnote reveal"><b>The v4 test number is not clean.</b> We looked at test to find the gap, then changed the data because of it. To claim it, hold out a fresh test pipeline. Also, ten logs per split is still a toy: one wrong label moves a split by about 0.1. And v4 is not 1.000 only because one reply ran past 15 words, though the prompt asks for 15 or fewer. An instruction is a request. A check is a rule.</div>`;
-      }
-      return `${head("Run 2", "Add the examples it was <em>missing</em>", "", true)}${logs}
-        ${st === 0 ? `<div class="row" style="margin-top:12px"><button class="primary" data-act="next">Run the optimizer again</button></div>` : ""}
-        ${shown.length ? optTable : ""}`;
+      if (!R.cand.v3) return `${head("Round 1", "Same five logs, <em>version 3</em>")}<div class="note warnnote">There is no version 3 yet. Go back one slide: the Coach writes it.</div>${retryRow()}${offlineNote()}`;
+      const m2 = miniMean("v2"), m3 = miniMean("v3");
+      return `${head("Round 1", "Same five logs, <em>version 3</em>", "", true)}
+        <div class="scroll tablebox small" tabindex="0" aria-label="Version 2 against version 3 on the five logs"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", MINI)}</tbody></table></div>
+        <p class="source mono">Click a row: the version 3 prompt, the reply, the score and the Grader's note</p>${retryRow()}${offlineNote()}
+        ${st >= 1 ? `<div class="row reveal"><span class="big">five logs</span><span class="arrow">&rarr;</span><span>v2 <b>${m2 === null ? "…" : f3(m2)}</b></span><span>v3 <b>${m3 === null ? "…" : f3(m3)}</b></span></div>
+        <div class="note reveal">${m2 === null || m3 === null ? "Marking…" : m3 > m2 ? "The score went up on the five logs the Coach learned from. That is the least it should do, and it proves little: the Coach saw these five. The Judge checks logs it has not seen next." : "The score did not go up on the five logs the Coach learned from. The Judge will drop this candidate."}</div>` : ""}`;
+    },
+  },
+  {
+    id: "judge", title: "The Judge decides", tag: "live", live: true, steps: 1,
+    hints: [["focused", "Rule one: did it beat its parent?"], ["thinking", "Rule two: check logs it has never seen."]],
+    notes: "Rule one: did version 3 beat version 2 on the same five logs? If not, it is dropped. Rule two: check both on the ten validation logs, which the Coach never saw. The winner on validation is the one we keep. Real GEPA keeps a pool of candidates that each win on different examples; with two candidates we simply compare. If version 3 was dropped on rule one, we still check it on validation, for the record, so you can see what would have happened.",
+    role: () => "judge",
+    effect: (st) => { needCand(); if (R.cand.v3) { ensure("v3", MINI, true); if (st >= 1) { ensure("v3", ids("val"), true); ensure("v2", ids("val"), true); } } },
+    render: (st) => {
+      if (!R.cand.v3) return `${head("Round 1", "The Judge <em>decides</em>")}<div class="note warnnote">There is no version 3 yet. Go back two slides: the Coach writes it.</div>${offlineNote()}`;
+      const m2 = miniMean("v2"), m3 = miniMean("v3");
+      const better = m2 !== null && m3 !== null && m3 > m2;
+      const r1 = `<div class="row reveal"><span class="big">rule one</span><span class="arrow">&rarr;</span><span>the same five logs: v2 <b>${m2 === null ? "…" : f3(m2)}</b></span><span>v3 <b>${m3 === null ? "…" : f3(m3)}</b></span>
+        <span class="${better ? "ok" : "bad"}">${m2 === null || m3 === null ? "" : better ? "improved: joins the pool" : "not improved: dropped"}</span></div>`;
+      if (st === 0) return `${head("Round 1", "Rule one: did it <em>beat its parent</em>?", "", true)}${r1}${retryRow()}${offlineNote()}`;
+      const v2v = splitMean("v2", "val"), v3v = splitMean("v3", "val");
+      const done = v2v !== null && v3v !== null;
+      const winner = done ? (v3v > v2v ? "v3" : "v2") : null;
+      return `${head("Round 1", "Rule two: logs it has <em>never seen</em>", "The ten validation logs. The Coach saw none of them.", true)}
+        <div class="scroll tablebox small" tabindex="0" aria-label="Validation logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("val"))}</tbody></table></div>
+        <div class="row reveal"><span class="big">validation</span><span class="arrow">&rarr;</span><span>v2 <b>${v2v === null ? "…" : f3(v2v)}</b></span><span>v3 <b>${v3v === null ? "…" : f3(v3v)}</b></span>${winner ? `<span class="ok">winner: ${winner === "v3" ? "version 3" : "version 2"}</span>` : ""}</div>
+        ${done ? `<div class="note reveal">${better ? "" : "Rule one dropped version 3, and a dropped candidate stops here in a real loop. We checked it anyway so you can see. "}${winner === "v3" ? "Version 3 also wins on logs the Coach never saw, so the Judge keeps it." : "Version 3 does not beat version 2 on validation, so the Judge keeps version 2."}</div>` : ""}${retryRow()}${offlineNote()}`;
+    },
+  },
+  {
+    id: "test", title: "The test, once", tag: "live", live: true, steps: 1,
+    hints: [["wink", "Ten logs nobody has looked at."], ["focused", "One look. Then no changes."]],
+    notes: "The Teacher kept ten logs sealed: two pipelines the loop never saw. We open them once. Say plainly that the gain is mostly a format fix: the Coach found a real bug, but a format bug, and a parser that strips code fences would give a similar jump. Then say the rule out loud: if you change the prompt because of this number, it is not a clean test any more. The winner leaves as a file plus a diff for a person to review.",
+    role: (st) => (st === 0 ? "teacher" : "judge"),
+    effect: (st) => { needCand(); if (st >= 1 && R.cand.v3) { for (const v of ["v2", "v3"]) for (const set of [MINI, ids("val"), ids("test")]) ensure(v, set, true); } },
+    render: (st) => {
+      if (st === 0) return `${head("The test", "Ten logs <em>nobody has looked at</em>", "Two pipelines, kafka-events and beam-telemetry. The Coach never saw them and the Judge never used them.", true)}
+        <div class="cluster">${ALL.filter((l) => l.split === "test").map(() => `<div class="card sealed"><h3>sealed</h3><p>?</p></div>`).join("")}</div>
+        <div class="row" style="margin-top:12px"><button class="primary" data-act="next">Open the test split (once)</button></div>`;
+      if (!R.cand.v3) return `${head("The test", "The test, <em>once</em>")}<div class="note warnnote">There is no version 3 yet. Go back three slides: the Coach writes it.</div>${offlineNote()}`;
+      const t2 = splitMean("v2", "test"), t3 = splitMean("v3", "test"), v2v = splitMean("v2", "val"), v3v = splitMean("v3", "val");
+      const fm = (x) => (x === null ? "…" : f3(x));
+      const fenced = (v) => ids("test").filter((id) => R.act[v][id] && R.act[v][id].text.trim().startsWith("```")).length;
+      const done = t2 !== null && t3 !== null;
+      return `${head("The test", "The number you <em>can quote</em>", "", true)}
+        <div class="scroll tablebox small" tabindex="0" aria-label="Test logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("test"))}</tbody></table></div>
+        <div class="row reveal"><span>v2 · five <b>${fm(miniMean("v2"))}</b> · val <b>${fm(v2v)}</b> · test <b>${fm(t2)}</b></span><span class="arrow">&rarr;</span><span>v3 · five <b>${fm(miniMean("v3"))}</b> · val <b>${fm(v3v)}</b> · test <b>${fm(t3)}</b></span></div>
+        ${done ? `<div class="note warnnote reveal"><b>${t3 > t2 ? "Version 3 holds up on test." : t3 === t2 ? "Test shows no difference." : "Version 3 does worse on test than on validation."}</b> ${fenced("v2")} of 10 version 2 replies were code-fenced and failed the JSON gate, against ${fenced("v3")} of 10 for version 3: mostly a format fix. Ten logs per split is a toy. This test is now used up: change the prompt because of it and it is no longer clean.</div>` : ""}${retryRow()}${offlineNote()}`;
     },
   },
   {
@@ -977,6 +1005,15 @@ function draw(motion) {
   const hk = sc.id + "|" + hint[1];
   if (hint[1]) comp.innerHTML = `<div class="mascot">${art}</div><div class="bubble${motion && hk !== S.hint ? " reveal" : ""}">${esc(hint[1])}</div>`;
   S.hint = hk;
+  const rk = typeof sc.role === "function" ? sc.role(st) : sc.role;
+  const roleEl = $("role");
+  roleEl.hidden = !rk;
+  if (rk) {
+    const rkey = sc.id + "|" + rk;
+    roleEl.className = "role" + (motion && rkey !== S.role ? " reveal" : "");
+    roleEl.innerHTML = `${stick(rk)}<span>${ROLE_NAME[rk]}</span>`;
+    S.role = rkey;
+  } else S.role = null;
   const n = $("notes");
   n.hidden = !S.notes;
   n.textContent = sc.notes;
@@ -1007,7 +1044,8 @@ document.addEventListener("click", (e) => {
   else if (act === "resetask") { R.confirmReset = true; draw(); }
   else if (act === "resetno") { R.confirmReset = false; draw(); }
   else if (act === "reset") startEmpty();
-  else if (act === "warm") { R.note = ""; const ids = ALL.map((l) => l.id); ensure("v1", ids, true); ensure("v2", ids, true); }
+  else if (act === "warm") warmAll();
+  else if (act === "coachnow") runCoach(true);
 });
 $("prev").addEventListener("click", prev);
 $("next").addEventListener("click", next);
@@ -1033,7 +1071,7 @@ window.addEventListener("hashchange", () => { const n = parseInt(location.hash.s
 go((parseInt(location.hash.slice(1), 10) || 1) - 1);
 setInterval(() => document.querySelectorAll("[data-since]").forEach((e) => { e.textContent = Math.floor((Date.now() - Number(e.dataset.since)) / 1000) + " s"; }), 1000);
 fetch("/api/health").then((r) => (r.ok ? r.json() : Promise.reject(new Error("no server"))))
-  .then((j) => { R.status = "live"; R.actor = j.actor; R.grader = j.grader; R.mode = j.mode; R.recorded = j.recorded; redraw(); })
+  .then((j) => { R.status = "live"; R.actor = j.actor; R.grader = j.grader; R.coachModel = j.coach; R.mode = j.mode; R.recorded = j.recorded; redraw(); })
   .catch(() => { R.status = "offline"; redraw(); });
 </script>
 </body>

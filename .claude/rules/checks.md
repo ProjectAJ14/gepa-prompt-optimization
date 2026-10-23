@@ -3,7 +3,7 @@
 Run these in order. Report any you did not run, and never describe a planned check as done.
 
 1. `python3 build.py` rebuilds `index.html` from `src/template.html`. Never edit `index.html` by hand.
-2. `node scripts/verify-numbers.js` must print "all numbers match" (the mocked scores).
+2. `node scripts/verify-numbers.js` must print "all numbers match". It checks the scoring gates, the parsing of the Coach's reply, the diff, and the shape of the data (nothing is mocked any more).
 3. `node scripts/smoke-render.js` must print "no render errors". It renders every step of every screen, and it
    exists because one missing helper blanked a slide and nothing else noticed.
 4. Open the real server and step through every screen with **Next only**, then **Previous**. Use the Playwright MCP:
