@@ -218,6 +218,15 @@
   .dgrid.one { grid-template-columns: minmax(0, 1fr); max-width: 56em; margin: 0 auto; }
   .dgrid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card.sealed { text-align: center; min-width: 4.5em; flex: 0 0 auto; } .card.sealed p { font-family: var(--font-mono); font-size: 1.6em; margin: 0; color: var(--faint); }
+  /* The closing slide: nine cards with the mascot's expressions, and one big question. */
+  .tips { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: left; }
+  .tip { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line-2); background: var(--panel); }
+  .tip h3 { margin: 0 0 2px; } .tip p { margin: 0; color: var(--dim); font-size: 0.86em; }
+  .tipface { flex: 0 0 auto; display: flex; }
+  .bigq { text-align: center; font-family: var(--font-disp); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-size: clamp(56px, 13vh, 150px); margin-top: clamp(24px, 9vh, 120px); color: var(--ink); }
+  .bigq em { font-style: normal; color: var(--spot); }
+  @media (max-width: 900px) { .tips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+  @media (max-width: 600px) { .tips { grid-template-columns: minmax(0, 1fr); } }
   .chiprow { text-align: center; margin-top: 8px; }
   .cluster.two .card { flex: 1 1 300px; }
   .cast { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
@@ -1012,25 +1021,24 @@ const SCREENS = [
     },
   },
   {
-    id: "checklist", title: "The checklist", tag: null, steps: 3,
-    hints: [["focused", "Gates, examples, and a split by source."], ["focused", "Baseline, a bar, and every limit in the score."], ["happy", "Record it, enforce it in code, look at test once."], ["celebrate", "Questions welcome."]],
-    notes: "Three items at a time. Read none of it aloud. Pick the two you most want them to remember. Then questions.",
-    render: (st) => {
+    id: "checklist", title: "The checklist", tag: null, steps: 0, hints: [["happy", ""]],
+    notes: "The closing slide is static: nine cards, one big question. Do not read them. Say thank you, say that is your time, and open for questions. If someone asks what to take away, point at the first, third and last card.",
+    render: () => {
       const items = [
-        "<b>Write the gates first.</b> Hard requirements as pass or fail.",
-        "<b>Freeze examples</b> with the expected answer next to each.",
-        "<b>Split by source,</b> not by row.",
-        "<b>Baseline with repeats.</b> Score the current prompt the same way.",
-        "<b>Fix the bar up front.</b> How many examples, how much difference counts.",
-        "<b>Put every limit in the score:</b> time, size, cost.",
-        "<b>Record everything:</b> model ids, tokens, seed.",
-        "<b>Code before wording</b> when code can enforce it.",
-        "<b>Look at test once,</b> and say so if you looked twice.",
+        ["Write the gates first", "Hard requirements as pass or fail.", "focused"],
+        ["Freeze the examples", "The right answer written next to each.", "thinking"],
+        ["Split by source, not by row", "A whole pipeline stays on one side.", "curious"],
+        ["Baseline first", "Score the current prompt the same way.", "neutral"],
+        ["Fix the bar up front", "How many logs, and how much difference counts.", "confused"],
+        ["Put every limit in the score", "Time, size and cost.", "worried"],
+        ["Record everything", "Model ids, tokens, time, every run.", "happy"],
+        ["Code before wording", "A format is a rule to check, not a request.", "wink"],
+        ["Look at test once", "And say so if you looked twice.", "surprised"],
       ];
       return `
-      ${head("Take this home", "Before you point an optimizer at a <em>prompt</em>")}
-      <ol class="checks">${items.slice(0, Math.min(9, (st + 1) * 3)).map((x) => `<li class="reveal">${x}</li>`).join("")}</ol>
-      ${st >= 3 ? `<p class="lede reveal" style="text-align:center;margin-top:24px">Questions?</p>` : ""}`;
+      ${head("Take this home", "Before you point an optimizer at a <em>prompt</em>", "", true)}
+      <div class="tips">${items.map((x) => `<div class="tip reveal"><span class="tipface">${EklavyaMascot.svg({ expression: x[2], variant: "face", size: 52 })}</span><div><h3>${esc(x[0])}</h3><p>${esc(x[1])}</p></div></div>`).join("")}</div>
+      <div class="bigq reveal">Questions<em>?</em></div>`;
     },
   },
 ];

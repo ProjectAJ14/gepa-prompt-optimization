@@ -15,6 +15,8 @@ Standing requirements from the speaker. They apply to every screen, including on
   only after it has been built up, or when the point is the finished prompt.
 - Techniques are added in this order, and **tags come last**: list the labels, show one example, name the edge cases,
   say the output format, tag the inputs. Tags are the payoff because they keep several inputs and sections apart.
+- **The closing slide is the one exception**: it is static (`steps: 0`), because the speaker shows it and does not talk through it. Nine cards, each with the mascot's face
+  in the expression that fits it, and one big "Questions?" at the bottom. No other slide shows everything at once.
 - Each step has a companion hint and the screen has speaker notes. A new screen needs `steps`, `hints` (one per
   step), `notes`, `tag` and `render`; add `live: true` and an `effect` if it makes model calls.
 
