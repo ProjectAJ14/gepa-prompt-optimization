@@ -42,7 +42,8 @@ First written 23 Oct 2026; updated the same day when the first screens moved fro
 | Use the window | Slides and boxes scale with the window instead of staying laptop-sized (speaker's call, 23 Oct, from a large screen with much unused space). Slide width `min(1500px, 100vw - 168px)`; run-grid and detail boxes grow with the window's height; text inside them grows with its width. At 1280×800 nothing changes. |
 | Motion | One entrance everywhere (speaker's call, 23 Oct): `rise`, 320ms. Next animates only the new element; a new screen rises as a whole; Previous and live results do not animate. Rule in `.claude/rules/slides.md`, code in `draw(motion)`. Before this, every `reveal` card replayed on every Next. |
 | Loading indicator | While a call runs: the output box shows a small orange pixel critter working (hopping legs, typing arms, blinking), what it waits for and the elapsed seconds; small waits use a ring spinner; the corner companion swaps to the critter. The speaker asked for the Claude mascot. **It is an original stand-in, not Anthropic's artwork**: nothing was downloaded, and an official asset can replace `src/claude-loader.svg`. |
-| Toy task | Classify pipeline failure logs (12 invented logs, 4 pipelines, 5 labels). Fits a data-engineering audience. |
+| 30 logs, 10 per split | Speaker asked for 10 per split (23 Oct), up from 12 logs in all. Ids: train 1-10 (spark-clicks, dbt-finance), val 11-20 (airflow-orders, fivetran-crm), test 21-30 (kafka-events, beam-telemetry), added 31-32 (flink-sessions). The 30-row table sits in a scrollable box. All 120 live calls (30 logs, 2 versions, act and grade) were recorded 23 Oct. The mocked screens got new mocked outputs for the new logs and their numbers were recomputed. |
+| Toy task | Classify pipeline failure logs (30 invented logs, 10 per split, 6 pipelines, 5 labels; speaker asked for 10 each on 23 Oct, up from 12). Fits a data-engineering audience. |
 | Honest ending | After the test split is revealed and acted on, the v4 test number is marked "peeked": it is no longer a clean test. (Mocked today; phase 2 redoes it live.) |
 | Theory before GEPA | Three screens after the score: what GEPA is, how to install it, what the repository holds. |
 | Design | Centred slides, the Eklavya design tokens inlined, the archer mascot as a companion with a short hint per step. **No Eklavya wordmark and no other product names on any slide** (speaker's call, 23 Oct); the one exception is the NonStop io logo in the header. |
@@ -57,7 +58,7 @@ then run **(live)** · 4. We need a score: examples, answers, split, score v1 an
 5. What is GEPA · 6. Install GEPA · 7. The GEPA repository · 8. The pipeline around the optimizer (ETL) ·
 9. Optimizer run 1 *(mock)* · 10. Version 3 and the test split *(mock)* · 11. Fix the data, run again *(mock)* · 12. The checklist
 
-## What the first live runs showed (23 Oct 2026, Haiku 4.5 acting, Haiku 5.5 grading)
+## What the first live runs showed (23 Oct 2026, Haiku 4.5 acting, Haiku 5.5 grading; the original 12-log set, so counts are out of 9)
 
 These are real, but one run each: replies vary, and the cache pins what the speaker will see.
 
@@ -67,7 +68,7 @@ These are real, but one run each: replies vary, and the cache pins what the spea
 - **Version 2 (five techniques, tags last):** Haiku 4.5 wrapped every JSON reply in a ```json code fence, despite
   "Reply with JSON only". A strict parser rejects them: 0 of 9 parse. The judge says 8 of 9 have the right idea.
   This is the natural first thing an optimizer would find ("do not wrap the reply in a code fence").
-- **Cost and speed:** about 7 s per actor call, 4 in parallel, so 12 logs take roughly 25 s per version including grading.
+- **Cost and speed:** about 7 s per actor call, 4 in parallel, so 12 logs took roughly 25 s per version including grading (the first set; 30 logs take about 1 minute).
   A call costs a fraction of a cent. Repeat runs are served from the cache in under a second.
 - The judge marked log 2 (a sensor timing out waiting for a file) as the wrong idea for version 1, which is an
   arguable call: it is a place where the grader and the gates, or two graders, could disagree.
@@ -75,8 +76,8 @@ These are real, but one run each: replies vary, and the cache pins what the spea
 ## Verified facts and where they come from
 
 **Mocked scores** (recomputed by `scripts/verify-numbers.js`; versions 2 to 4 and the rejected candidate, screens 9 to 11):
-v2 train 0.639, val 0.778, test 0.556; v3 train 1.000, val 1.000, test 0.778; v4 val 1.000, test 0.917; rejected candidate B train and
-val 0.750. **These v2 numbers no longer match the live v2 results above**, which is why phase 2 exists.
+v2 train 0.717, val 0.867, test 0.667; v3 train 1.000, val 1.000, test 0.800; v4 val 1.000, test 0.975; rejected candidate B train and
+val 0.750 (recomputed for the 30-log set). **These v2 numbers no longer match the live v2 results above**, which is why phase 2 exists.
 
 **GEPA facts on screens 5 to 7:** from the repository README at https://github.com/gepa-ai/gepa, fetched
 23 Oct 2026 (a summary of the page, not the raw file). Covered: the one-line definition, the paper (*GEPA: Reflective
@@ -94,6 +95,7 @@ the install from `main`, the Claude Code skill commands, the entry points (`gepa
 
 ## Open items
 
+- The live v1 and v2 numbers on the score screen are for the 30-log set: v2 parses 0 of 20 train and validation replies (code fences), the judge says 18 of 20 have the right idea.
 - **Recordings made before 23 Oct 2026, 19:24 have no timestamp** and show "time not recorded" until each call is re-run
   with Run now. A "re-run all" button is not built; it would cost about 50 calls.
 - **Decide how strict the parser is.** Today a reply wrapped in a code fence fails the JSON gate. That is honest

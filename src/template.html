@@ -192,6 +192,8 @@
   ol.checks li { margin-bottom: 8px; }
   ol.checks b { color: var(--ink); }
   .scroll { overflow-x: auto; }
+  .tablebox { max-height: calc(100vh - 460px); overflow: auto; } .tablebox.scored { max-height: calc(100vh - 590px); } /* 30 rows: a fixed-size scrollable box, not a page scroll */
+  .tablebox thead th { position: sticky; top: 0; background: var(--bg); z-index: 1; }
   /* Motion contract (.claude/rules/slides.md): one entrance, `rise`. Only what is new animates; `still` marks what was already there. */
   .reveal { animation: rise var(--duration-slow) var(--ease); }
   pre.prompt .add { animation: rise var(--duration-slow) var(--ease); }
@@ -232,59 +234,115 @@ const LABELS = ["SCHEMA_DRIFT", "LATE_DATA", "RESOURCE_EXHAUSTED", "DATA_QUALITY
 
 // Invented failure logs. `added` logs only join the training set on the "fix the data" screen.
 const LOGS = [
-  { id: 1,  pipe: "airflow-orders", split: "val",   exp: "SCHEMA_DRIFT",       text: "Task load_orders failed: column 'order_total' not found in source table (expected 14 columns, got 13)" },
-  { id: 2,  pipe: "airflow-orders", split: "val",   exp: "LATE_DATA",          text: "Sensor wait_for_file timed out after 6h: s3://raw/orders/2026-10-20/ not found" },
-  { id: 3,  pipe: "airflow-orders", split: "val",   exp: "RESOURCE_EXHAUSTED", text: "Task dedupe killed: container exceeded memory limit 8Gi" },
-  { id: 4,  pipe: "spark-clicks",   split: "train", exp: "RESOURCE_EXHAUSTED", text: "ExecutorLostFailure: executor 12 exited (OOMKilled)" },
-  { id: 5,  pipe: "spark-clicks",   split: "train", exp: "SCHEMA_DRIFT",       text: "AnalysisException: cannot resolve 'device_type' given input columns: [device, ts, user_id]" },
-  { id: 6,  pipe: "spark-clicks",   split: "train", exp: "LATE_DATA",          text: "Checkpoint lag 47 min behind source; no new offsets since 02:10" },
-  { id: 7,  pipe: "dbt-finance",    split: "train", exp: "DATA_QUALITY",       text: "Test not_null_invoices_amount failed: 312 rows with null amount" },
-  { id: 8,  pipe: "dbt-finance",    split: "train", exp: "UPSTREAM_FAILURE",   text: "Connection refused: warehouse.internal:5439 (3 retries)" },
-  { id: 9,  pipe: "dbt-finance",    split: "train", exp: "DATA_QUALITY",       text: "Test unique_payments_id failed: 18 duplicate ids" },
-  { id: 10, pipe: "kafka-events",   split: "test",  exp: "UPSTREAM_FAILURE",   text: "Broker 2 unreachable; leader election pending for 9 partitions" },
-  { id: 11, pipe: "kafka-events",   split: "test",  exp: "LATE_DATA",          text: "Topic events.v3 empty for 4h; batch window closed with 0 records" },
-  { id: 12, pipe: "kafka-events",   split: "test",  exp: "SCHEMA_DRIFT",       text: "Deserialization error: field 'ts' is string, schema says long (offset 88123)" },
-  { id: 13, pipe: "flink-sessions", split: "train", exp: "SCHEMA_DRIFT",       text: "Cannot cast field 'amount' from STRING to DOUBLE: value 'N/A'", added: true },
-  { id: 14, pipe: "flink-sessions", split: "train", exp: "SCHEMA_DRIFT",       text: "Avro reader: expected int for field 'version', found string", added: true },
+  { id: 1,  pipe: "spark-clicks",    split: "train", exp: "RESOURCE_EXHAUSTED", text: "ExecutorLostFailure: executor 12 exited (OOMKilled)" },
+  { id: 2,  pipe: "spark-clicks",    split: "train", exp: "SCHEMA_DRIFT",       text: "AnalysisException: cannot resolve 'device_type' given input columns: [device, ts, user_id]" },
+  { id: 3,  pipe: "spark-clicks",    split: "train", exp: "LATE_DATA",          text: "Checkpoint lag 47 min behind source; no new offsets since 02:10" },
+  { id: 4,  pipe: "spark-clicks",    split: "train", exp: "LATE_DATA",          text: "Partition dt=2026-10-19 still missing at 06:00; downstream join ran on yesterday's data" },
+  { id: 5,  pipe: "spark-clicks",    split: "train", exp: "UPSTREAM_FAILURE",   text: "S3 read failed: 503 Slow Down from s3://raw/clicks/ after 8 retries" },
+  { id: 6,  pipe: "dbt-finance",     split: "train", exp: "DATA_QUALITY",       text: "Test not_null_invoices_amount failed: 312 rows with null amount" },
+  { id: 7,  pipe: "dbt-finance",     split: "train", exp: "UPSTREAM_FAILURE",   text: "Connection refused: warehouse.internal:5439 (3 retries)" },
+  { id: 8,  pipe: "dbt-finance",     split: "train", exp: "DATA_QUALITY",       text: "Test unique_payments_id failed: 18 duplicate ids" },
+  { id: 9,  pipe: "dbt-finance",     split: "train", exp: "SCHEMA_DRIFT",       text: "Database Error: column 'fx_rate' does not exist in model stg_payments" },
+  { id: 10, pipe: "dbt-finance",     split: "train", exp: "RESOURCE_EXHAUSTED", text: "Warehouse out of temp disk space while building model fct_revenue" },
+  { id: 11, pipe: "airflow-orders",  split: "val",   exp: "SCHEMA_DRIFT",       text: "Task load_orders failed: column 'order_total' not found in source table (expected 14 columns, got 13)" },
+  { id: 12, pipe: "airflow-orders",  split: "val",   exp: "LATE_DATA",          text: "Sensor wait_for_file timed out after 6h: s3://raw/orders/2026-10-20/ not found" },
+  { id: 13, pipe: "airflow-orders",  split: "val",   exp: "RESOURCE_EXHAUSTED", text: "Task dedupe killed: container exceeded memory limit 8Gi" },
+  { id: 14, pipe: "airflow-orders",  split: "val",   exp: "DATA_QUALITY",       text: "Check amount_positive failed: 87 rows with a negative order amount" },
+  { id: 15, pipe: "airflow-orders",  split: "val",   exp: "UPSTREAM_FAILURE",   text: "HTTP 502 from payments-api /v2/settlements after 4 retries" },
+  { id: 16, pipe: "fivetran-crm",    split: "val",   exp: "SCHEMA_DRIFT",       text: "Sync failed: source column 'lead_score' changed type from INT to VARCHAR" },
+  { id: 17, pipe: "fivetran-crm",    split: "val",   exp: "LATE_DATA",          text: "Connector last synced 19h ago; sync window is 6h" },
+  { id: 18, pipe: "fivetran-crm",    split: "val",   exp: "RESOURCE_EXHAUSTED", text: "Sync paused: monthly active rows quota of 5,000,000 exceeded" },
+  { id: 19, pipe: "fivetran-crm",    split: "val",   exp: "DATA_QUALITY",       text: "1,144 rows in contacts share a primary key" },
+  { id: 20, pipe: "fivetran-crm",    split: "val",   exp: "UPSTREAM_FAILURE",   text: "Salesforce API returned 503 Service Unavailable for 40 minutes" },
+  { id: 21, pipe: "kafka-events",    split: "test",  exp: "UPSTREAM_FAILURE",   text: "Broker 2 unreachable; leader election pending for 9 partitions" },
+  { id: 22, pipe: "kafka-events",    split: "test",  exp: "LATE_DATA",          text: "Topic events.v3 empty for 4h; batch window closed with 0 records" },
+  { id: 23, pipe: "kafka-events",    split: "test",  exp: "SCHEMA_DRIFT",       text: "Deserialization error: field 'ts' is string, schema says long (offset 88123)" },
+  { id: 24, pipe: "kafka-events",    split: "test",  exp: "RESOURCE_EXHAUSTED", text: "Broker 3 log directory full: no space left on device" },
+  { id: 25, pipe: "kafka-events",    split: "test",  exp: "DATA_QUALITY",       text: "Producer sent 2,310 events with an empty user_id" },
+  { id: 26, pipe: "beam-telemetry",  split: "test",  exp: "SCHEMA_DRIFT",       text: "Cannot coerce field 'temp' from STRING to FLOAT: value 'n/a'" },
+  { id: 27, pipe: "beam-telemetry",  split: "test",  exp: "SCHEMA_DRIFT",       text: "Avro reader: field 'firmware' expected int, found string" },
+  { id: 28, pipe: "beam-telemetry",  split: "test",  exp: "LATE_DATA",          text: "Watermark is 3h behind event time; 41% of events dropped as late" },
+  { id: 29, pipe: "beam-telemetry",  split: "test",  exp: "RESOURCE_EXHAUSTED", text: "Worker lost: java.lang.OutOfMemoryError: GC overhead limit exceeded" },
+  { id: 30, pipe: "beam-telemetry",  split: "test",  exp: "DATA_QUALITY",       text: "640 readings outside the allowed range for temp_c (above 1000)" },
+  { id: 31, pipe: "flink-sessions", split: "train", exp: "SCHEMA_DRIFT", text: "Cannot cast field 'amount' from STRING to DOUBLE: value 'N/A'", added: true },
+  { id: 32, pipe: "flink-sessions", split: "train", exp: "SCHEMA_DRIFT", text: "Avro reader: expected int for field 'version', found string", added: true },
 ];
 
 // Fixed model outputs per prompt version, so the demo never calls a model.
 const OUT = {
   v2: {
-    1: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
-    2: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
-    3: ["UPSTREAM_FAILURE", "The task was killed by the platform."],
-    4: ["UPSTREAM_FAILURE", "An executor was lost during the job."],
-    5: ["SCHEMA_DRIFT", "The query refers to a column that is not in the input."],
-    6: ["UPSTREAM_FAILURE", "The source stopped producing new offsets."],
-    7: ["DATA_QUALITY", "Null values in a column that must not be null."],
-    8: ["UPSTREAM_FAILURE", "The warehouse refused the connection."],
-    9: ["DUPLICATES", "Several rows share the same id."],
-    10: ["UPSTREAM_FAILURE", "A broker is down and partitions have no leader."],
-    11: ["UPSTREAM_FAILURE", "The producer appears to have stopped sending messages to the topic, so no records reached the batch."],
-    12: ["DATA_QUALITY", "A value has the wrong type."],
+    1: ["UPSTREAM_FAILURE", "The executor was killed for using too much memory."],
+    2: ["SCHEMA_DRIFT", "The query refers to a column that is not in the input."],
+    3: ["UPSTREAM_FAILURE", "The checkpoint is far behind the source."],
+    4: ["UPSTREAM_FAILURE", "A partition is missing and the job ran on old data."],
+    5: ["UPSTREAM_FAILURE", "The storage service kept refusing requests."],
+    6: ["DATA_QUALITY", "Null values in a column that must not be null."],
+    7: ["UPSTREAM_FAILURE", "The warehouse refused the connection."],
+    8: ["DUPLICATES", "Several rows share the same id."],
+    9: ["SCHEMA_DRIFT", "The model refers to a column that does not exist."],
+    10: ["RESOURCE_EXHAUSTED", "The warehouse ran out of temporary disk space."],
+    11: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
+    12: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
+    13: ["UPSTREAM_FAILURE", "The task was killed for exceeding its memory limit."],
+    14: ["DATA_QUALITY", "Some order amounts are negative."],
+    15: ["UPSTREAM_FAILURE", "The payments service kept answering with errors."],
+    16: ["SCHEMA_DRIFT", "A source column changed its type."],
+    17: ["LATE_DATA", "The connector has not synced for much longer than its window."],
+    18: ["UPSTREAM_FAILURE", "The sync stopped because a usage quota was exceeded."],
+    19: ["DATA_QUALITY", "Several contact rows share one key."],
+    20: ["UPSTREAM_FAILURE", "The source service was unavailable."],
+    21: ["UPSTREAM_FAILURE", "A broker is down and partitions have no leader."],
+    22: ["UPSTREAM_FAILURE", "The topic stayed empty and the batch closed with no records."],
+    23: ["DATA_QUALITY", "A value has the wrong type."],
+    24: ["UPSTREAM_FAILURE", "A broker ran out of disk space."],
+    25: ["DATA_QUALITY", "Events arrived with an empty user_id."],
+    26: ["SCHEMA_DRIFT", "A value cannot be read as a number."],
+    27: ["SCHEMA_DRIFT", "A field holds the wrong kind of value."],
+    28: ["UPSTREAM_FAILURE", "Events arrive far behind the clock and are dropped."],
+    29: ["UPSTREAM_FAILURE", "A worker ran out of memory."],
+    30: ["DATA_QUALITY", "Readings fall outside the allowed range."],
   },
   v3: {
-    1: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
-    2: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
-    3: ["RESOURCE_EXHAUSTED", "The task was killed for exceeding its memory limit."],
-    4: ["RESOURCE_EXHAUSTED", "The executor was killed for using too much memory."],
-    5: ["SCHEMA_DRIFT", "The query refers to a column that is not in the input."],
-    6: ["LATE_DATA", "The checkpoint is far behind the source."],
-    7: ["DATA_QUALITY", "Null values in a column that must not be null."],
-    8: ["UPSTREAM_FAILURE", "The warehouse refused the connection."],
-    9: ["DATA_QUALITY", "Several rows share the same id."],
-    10: ["UPSTREAM_FAILURE", "A broker is down and partitions have no leader."],
-    11: ["LATE_DATA", "The topic stayed empty and the batch closed with no records."],
-    12: ["DATA_QUALITY", "A value has the wrong type."],
-    13: ["DATA_QUALITY", "The value N/A is not a number."],
-    14: ["DATA_QUALITY", "A field holds the wrong kind of value."],
+    1: ["RESOURCE_EXHAUSTED", "The executor was killed for using too much memory."],
+    2: ["SCHEMA_DRIFT", "The query refers to a column that is not in the input."],
+    3: ["LATE_DATA", "The checkpoint is far behind the source."],
+    4: ["LATE_DATA", "A partition is missing and the job ran on old data."],
+    5: ["UPSTREAM_FAILURE", "The storage service kept refusing requests."],
+    6: ["DATA_QUALITY", "Null values in a column that must not be null."],
+    7: ["UPSTREAM_FAILURE", "The warehouse refused the connection."],
+    8: ["DATA_QUALITY", "Several rows share the same id."],
+    9: ["SCHEMA_DRIFT", "The model refers to a column that does not exist."],
+    10: ["RESOURCE_EXHAUSTED", "The warehouse ran out of temporary disk space."],
+    11: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
+    12: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
+    13: ["RESOURCE_EXHAUSTED", "The task was killed for exceeding its memory limit."],
+    14: ["DATA_QUALITY", "Some order amounts are negative."],
+    15: ["UPSTREAM_FAILURE", "The payments service kept answering with errors."],
+    16: ["SCHEMA_DRIFT", "A source column changed its type."],
+    17: ["LATE_DATA", "The connector has not synced for much longer than its window."],
+    18: ["RESOURCE_EXHAUSTED", "The sync stopped because a usage quota was exceeded."],
+    19: ["DATA_QUALITY", "Several contact rows share one key."],
+    20: ["UPSTREAM_FAILURE", "The source service was unavailable."],
+    21: ["UPSTREAM_FAILURE", "A broker is down and partitions have no leader."],
+    22: ["LATE_DATA", "The topic stayed empty and the batch closed with no records."],
+    23: ["DATA_QUALITY", "A value has the wrong type."],
+    24: ["RESOURCE_EXHAUSTED", "A broker ran out of disk space."],
+    25: ["DATA_QUALITY", "Events arrived with an empty user_id."],
+    26: ["DATA_QUALITY", "A value cannot be read as a number."],
+    27: ["DATA_QUALITY", "A field holds the wrong kind of value."],
+    28: ["LATE_DATA", "Events arrive far behind the clock and are dropped."],
+    29: ["RESOURCE_EXHAUSTED", "A worker ran out of memory."],
+    30: ["DATA_QUALITY", "Readings fall outside the allowed range."],
+    31: ["DATA_QUALITY", "The value N/A is not a number."],
+    32: ["DATA_QUALITY", "A field holds the wrong kind of value."],
   },
   v4: {
-    11: ["LATE_DATA", "The topic stayed empty for hours and the batch window closed with zero records, so the data is late."],
-    12: ["SCHEMA_DRIFT", "A field's type does not match the schema."],
-    13: ["SCHEMA_DRIFT", "The amount field is a string where a number is expected."],
-    14: ["SCHEMA_DRIFT", "The version field has the wrong type."],
+    22: ["LATE_DATA", "The topic stayed empty for hours and the batch window closed with zero records, so the data is late."],
+    23: ["SCHEMA_DRIFT", "A value has the wrong type."],
+    26: ["SCHEMA_DRIFT", "A value cannot be read as a number."],
+    27: ["SCHEMA_DRIFT", "A field holds the wrong kind of value."],
+    31: ["SCHEMA_DRIFT", "The value N/A is not a number."],
+    32: ["SCHEMA_DRIFT", "A field holds the wrong kind of value."],
   },
 };
 OUT.v4 = Object.assign({}, OUT.v3, OUT.v4);
@@ -374,9 +432,9 @@ const segsHtml = (segs) => segs.map((s) => {
 const P1 = v2Segs(0);
 
 const ADD3_WHY = [
-  "Log 4 (an OOMKilled executor) was called UPSTREAM_FAILURE.",
-  "Log 6 (checkpoint lag) was called UPSTREAM_FAILURE.",
-  "Log 9 got an invented label, DUPLICATES.",
+  "Logs 1 and 13 (an OOMKilled executor, a memory limit) were called UPSTREAM_FAILURE.",
+  "Logs 3 and 4 (checkpoint lag, a missing partition) were called UPSTREAM_FAILURE.",
+  "Log 8 got an invented label, DUPLICATES.",
   "The score gives less credit to long reasons, so it adds a length limit.",
 ];
 const ADD3 = [
@@ -387,7 +445,7 @@ const ADD3 = [
 ];
 const ADD4 = ["A field whose type disagrees with the schema is SCHEMA_DRIFT."];
 
-const SAMPLE = [1, 5, 7, 11];
+const SAMPLE = [11, 2, 6, 22];
 const splitPill = (s) => `<span class="pill ${s}">${s}</span>`;
 const head = (eyebrow, title, lede, dense) => `<div class="head${dense ? " dense" : ""}"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${lede ? `<p class="lede">${lede}</p>` : ""}</div>`;
 const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
@@ -629,9 +687,9 @@ const SCREENS = [
       const means = v ? `<div class="row reveal"><span class="big">${v}</span><span class="arrow">&rarr;</span>
         <span>train <b>${lm("train")}</b></span><span>val <b>${lm("val")}</b></span><span class="faint">test hidden</span></div>` : "";
       const captions = [
-        "Twelve invented failure logs from four pipelines. This is the raw material.",
+        "Thirty invented failure logs from six pipelines. This is the raw material.",
         "Each log gets the right answer written down next to it. Without that, there is nothing to score against.",
-        "Split by <b>pipeline</b>, not by row, so look-alike logs stay on one side: spark-clicks and dbt-finance train, airflow-orders validates, kafka-events is held back for test.",
+        "Split by <b>pipeline</b>, not by row, so look-alike logs stay on one side: spark-clicks and dbt-finance train, airflow-orders and fivetran-crm validate, kafka-events and beam-telemetry are held back for test. Ten logs each.",
       ];
       const note = st < 3 ? captions[st] : scoreNote(v);
       return `
@@ -639,7 +697,7 @@ const SCREENS = [
       ${st >= 3 ? `<div class="row"><span class="mono">Score a prompt</span>
         <button class="tab" data-act="goto:3" aria-pressed="${st === 3}">v1</button>
         <button class="tab" data-act="goto:4" aria-pressed="${st >= 4}">v2</button></div>` : ""}
-      <div class="scroll"><table class="compact"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="scroll tablebox${v ? " scored" : ""}" tabindex="0" aria-label="The 30 logs, scrollable"><table class="compact"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>
       ${v ? `<p class="source mono">Click a row: the prompt, the reply, the score and the judge's reasoning</p>` : ""}
       ${means}${retryRow()}${st >= 3 ? offlineNote() : ""}
       <div class="note reveal">${note}</div>`;
@@ -762,7 +820,7 @@ const SCREENS = [
     render: (st) => {
       const rows = [
         { n: 0, read: "Starting prompt (v2)", edit: "None", tr: mean("v2", "train"), va: mean("v2", "val"), verdict: "start" },
-        { n: 1, read: "Logs 4 and 6 (killed job, lag) were called UPSTREAM_FAILURE. Log 9 got an invented label.", edit: ADD3.join(" "), tr: mean("v3", "train"), va: mean("v3", "val"), verdict: "kept" },
+        { n: 1, read: "Logs 1, 3 and 4 (killed job, lag, missing partition) were called UPSTREAM_FAILURE. Log 8 got an invented label.", edit: ADD3.join(" "), tr: mean("v3", "train"), va: mean("v3", "val"), verdict: "kept" },
         { n: 2, read: "Reasons look thin.", edit: "Think step by step and explain at length.", tr: mean("B", "train"), va: mean("B", "val"), verdict: "dropped: replies grew and the score fell" },
       ];
       const shown = rows.slice(0, Math.min(st, 3));
@@ -778,7 +836,7 @@ const SCREENS = [
     id: "v3", title: "Version 3: the optimizer edits the prompt", tag: "example", steps: 6,
     hints: [["curious", "Same prompt. Now it starts editing."], ["focused", "Each rule traces back to a failure."], ["focused", "Each rule traces back to a failure."],
       ["focused", "Each rule traces back to a failure."], ["happy", "Four rules. Now the scores."], ["wink", "Test is still hidden. Resist."], ["surprised", "Validation looked perfect. Test did not."]],
-    notes: "Start from v2. Each Next, the optimizer adds one rule, with the failure that caused it. Then the scores, then look at the test split once. Validation looked perfect, test did not. The failing log is a type mismatch the optimizer never saw an example of.",
+    notes: "Start from v2. Each Next, the optimizer adds one rule, with the failure that caused it. Then the scores, then look at the test split once. Validation looked perfect, test did not. The failing logs are type mismatches the optimizer never saw an example of.",
     render: (st) => {
       const n = Math.min(st, 4);
       const t2 = mean("v2", "test"), t3 = mean("v3", "test");
@@ -791,7 +849,7 @@ const SCREENS = [
         <tr><td>v2 (you wrote it)</td><td class="num">${f3(mean("v2", "train"))}</td><td class="num">${f3(mean("v2", "val"))}</td><td class="num">${st >= 6 ? f3(t2) : "hidden"}</td></tr>
         <tr><td>v3 (optimizer)</td><td class="num">${f3(mean("v3", "train"))}</td><td class="num">${f3(mean("v3", "val"))}</td><td class="num">${st >= 6 ? f3(t3) : "hidden"}</td></tr></tbody></table></div>` : ""}
       ${st === 5 ? `<div class="row"><button class="primary" data-act="goto:6">Look at the test split (once)</button></div>` : ""}
-      ${st >= 6 ? `<div class="note warnnote reveal">Validation looked perfect. Test did not. ${failing.map((l) => `Log ${l.id} (${esc(l.text)}) was called ${esc(OUT.v3[l.id][0])}; the answer is ${esc(l.exp)}.`).join(" ")} The optimizer had never seen a type mismatch. That is missing data, not a missing sentence.</div>` : ""}`;
+      ${st >= 6 ? `<div class="note warnnote reveal">Validation looked perfect. Test did not. ${failing.length} of ${LOGS.filter((l) => l.split === "test").length} test logs missed. For example, log ${failing[0].id} (${esc(failing[0].text)}) was called ${esc(OUT.v3[failing[0].id][0])}; the answer is ${esc(failing[0].exp)}. The optimizer had never seen a type mismatch. That is missing data, not a missing sentence.</div>` : ""}`;
     },
   },
   {
@@ -802,8 +860,8 @@ const SCREENS = [
     render: (st) => {
       const added = LOGS.filter((l) => l.added);
       const rows = [
-        { n: 0, read: "Starting prompt (v3), train set now 8 logs", edit: "None", tr: mean("v3", "train", true), va: mean("v3", "val"), verdict: "start" },
-        { n: 1, read: "Logs 13 and 14 (type mismatches) were called DATA_QUALITY.", edit: ADD4.join(" "), tr: mean("v4", "train", true), va: mean("v4", "val"), verdict: "kept" },
+        { n: 0, read: "Starting prompt (v3), train set now 12 logs", edit: "None", tr: mean("v3", "train", true), va: mean("v3", "val"), verdict: "start" },
+        { n: 1, read: "Logs 31 and 32 (type mismatches) were called DATA_QUALITY.", edit: ADD4.join(" "), tr: mean("v4", "train", true), va: mean("v4", "val"), verdict: "kept" },
       ];
       const shown = rows.slice(0, Math.min(st, 2));
       const t = (v) => f3(mean(v, "test"));
@@ -821,7 +879,7 @@ const SCREENS = [
             <tr><td>v2</td><td class="num">${f3(mean("v2", "val"))}</td><td class="num">${t("v2")}</td></tr>
             <tr><td>v3</td><td class="num">${f3(mean("v3", "val"))}</td><td class="num">${t("v3")}</td></tr>
             <tr><td>v4</td><td class="num">${f3(mean("v4", "val"))}</td><td class="num warn">${t("v4")} <span class="pill test">peeked</span></td></tr></tbody></table></div>
-          <div class="note warnnote reveal"><b>The v4 test number is not clean.</b> We looked at test to find the gap, then changed the data because of it. To claim it, hold out a fresh test pipeline. Also, three logs per split is a toy: one wrong label moves a split by 0.222. And v4 is not 1.000 only because one reply ran past 15 words, though the prompt asks for 15 or fewer. An instruction is a request. A check is a rule.</div>`;
+          <div class="note warnnote reveal"><b>The v4 test number is not clean.</b> We looked at test to find the gap, then changed the data because of it. To claim it, hold out a fresh test pipeline. Also, ten logs per split is still a toy: one wrong label moves a split by about 0.1. And v4 is not 1.000 only because one reply ran past 15 words, though the prompt asks for 15 or fewer. An instruction is a request. A check is a rule.</div>`;
       }
       return `${head("Run 2", "Add the examples it was <em>missing</em>", "", true)}${logs}
         ${st === 0 ? `<div class="row" style="margin-top:12px"><button class="primary" data-act="next">Run the optimizer again</button></div>` : ""}
@@ -884,7 +942,9 @@ function draw(motion) {
   const before = S.last === sc.id ? slide.getBoundingClientRect() : null;
   const NEW = ".reveal, pre.prompt .add";
   const seen = new Set(motion === "step" ? [...slide.querySelectorAll(NEW)].map((e) => e.outerHTML) : []);
+  const tb = slide.querySelector(".tablebox"), tbTop = tb ? tb.scrollTop : 0; // live results redraw the slide; keep the reader's place in the table
   slide.innerHTML = sc.render(st);
+  const tb2 = slide.querySelector(".tablebox"); if (tb2) tb2.scrollTop = tbTop;
   slide.querySelectorAll(NEW).forEach((e) => { if (motion !== "step" || seen.has(e.outerHTML)) e.classList.add("still"); });
   if (motion === "screen" && !reduced() && slide.animate) slide.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: MOTION.ms, easing: MOTION.ease });
   // The slide is vertically centred, so adding content moves it. Glide it instead of jumping.

@@ -29,9 +29,9 @@ const { mean, judge, LOGS, OUT } = sandbox.__X;
 
 // [version, split, includes the two logs added on the "fix the data" screen, expected mean]
 const EXPECTED = [
-  ["v2", "train", false, 0.639], ["v2", "val", false, 0.778], ["v2", "test", false, 0.556],
-  ["v3", "train", false, 1.0], ["v3", "val", false, 1.0], ["v3", "test", false, 0.778], ["v3", "train", true, 0.833],
-  ["v4", "train", true, 1.0], ["v4", "val", false, 1.0], ["v4", "test", false, 0.917],
+  ["v2", "train", false, 0.717], ["v2", "val", false, 0.867], ["v2", "test", false, 0.667],
+  ["v3", "train", false, 1.0], ["v3", "val", false, 1.0], ["v3", "test", false, 0.8], ["v3", "train", true, 0.889],
+  ["v4", "train", true, 1.0], ["v4", "val", false, 1.0], ["v4", "test", false, 0.975],
   ["B", "train", false, 0.75], ["B", "val", false, 0.75],
 ];
 let bad = 0;

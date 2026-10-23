@@ -43,6 +43,9 @@ One entrance for everything, so Next always feels the same. The contract lives i
   (`compact` tables, `dense` headings, a smaller prompt) or let one step replace the previous one's content, before
   accepting a scroll. Re-measure after every change and record which steps still scroll.
 - Long text lives in a fixed-size, read-only, scrollable box, not in a growing card.
+- A table of more than about a dozen rows (the 30-log score table) sits in `.tablebox`, a fixed-height scrollable box with a sticky header,
+  so the slide itself never scrolls. Its height comes from the viewport (`calc(100vh - ...)`), and `draw()` keeps its scroll position
+  across redraws so arriving model results do not throw the reader back to the top.
 - **Use the window.** The speaker presents on large screens, so content must grow with the window instead of sitting in a
   laptop-sized column. The baseline is 1280×800, where everything must fit; above that, sizes scale. The slide is
   `min(1500px, 100vw - 168px)` wide (the gutter keeps the corner companion clear). Box heights and the text inside them come
