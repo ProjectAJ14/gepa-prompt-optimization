@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72" shape-rendering="crispEdges" role="img" aria-label="Working">
+  <g class="cl-legs">
+    <g class="cl-leg-a" fill="var(--term-claude)"><rect x="24" y="48" width="8" height="12"/><rect x="52" y="48" width="8" height="12"/></g>
+    <g class="cl-leg-b" fill="var(--term-claude)"><rect x="36" y="48" width="8" height="12"/><rect x="64" y="48" width="8" height="12"/></g>
+  </g>
+  <g class="cl-body">
+    <rect class="cl-arm-l" x="4" y="24" width="12" height="8" fill="var(--term-claude)"/>
+    <rect class="cl-arm-r" x="80" y="24" width="12" height="8" fill="var(--term-claude)"/>
+    <rect x="16" y="12" width="64" height="36" fill="var(--term-claude)"/>
+    <rect class="cl-eye" x="32" y="24" width="8" height="12" fill="var(--bg)"/>
+    <rect class="cl-eye" x="56" y="24" width="8" height="12" fill="var(--bg)"/>
+  </g>
+</svg>

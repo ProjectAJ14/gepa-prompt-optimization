@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Data Engineering for Prompt Optimization</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' fill='%230E6E66'/%3E%3Cg fill='none' stroke='%23FFFFFF' stroke-width='30' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M164 116c100 52 100 228 0 280'/%3E%3Cpath d='M164 116v280M120 256h272m-64-64 64 64-64 64'/%3E%3C/g%3E%3C/svg%3E">
-<!-- Eklavya design tokens and the Archer Cloak mascot, copied from web/public so this page stays one offline file.
+<!-- Design tokens and the archer mascot, inlined by build.py so this page stays one file.
      Only the web fonts are fetched; offline, the stacks fall back to system faces. -->
 <style>
 /* ============================================================
@@ -299,6 +299,11 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
 
 </style>
 <style>
+  :root {
+    --boxh: min(360px, calc(126px + max(0px, (100vh - 800px) * 0.3)));       /* run-grid boxes: 126px at 800px tall, taller on a bigger window */
+    --detailh: min(520px, calc(300px + max(0px, (100vh - 800px) * 0.4)));    /* boxes in an opened score row */
+    --monosz: clamp(12px, 0.9vw, 17px);                                      /* text inside those boxes */
+  }
   * { box-sizing: border-box; }
   html, body { height: 100%; }
   body {
@@ -311,8 +316,7 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   header, footer { display: flex; align-items: center; gap: 16px; padding: 10px 24px; background: var(--bg); border-color: var(--line-2); }
   header { border-bottom: 1px solid var(--line-2); }
   footer { border-top: 1px solid var(--line-2); }
-  .brand { display: inline-flex; align-items: center; gap: 10px; font: 900 19px var(--font-disp); letter-spacing: var(--tracking-snug); color: var(--ink); }
-  .brand i { display: grid; place-items: center; width: 30px; height: 30px; background: var(--spot); color: var(--spot-ink); }
+  .logo { height: 26px; width: auto; display: block; flex-shrink: 0; }
   .mono { font-family: var(--font-mono); font-size: 0.72em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--faint); }
   .crumb { flex: 1; color: var(--dim); font-size: 0.8em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
   select {
@@ -321,7 +325,7 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   }
   main { flex: 1; min-height: 0; overflow: auto; padding: 24px 24px 120px; outline: none; }
   .stage { min-height: 100%; display: flex; flex-direction: column; }
-  .slide { margin: auto; width: 100%; max-width: 1080px; }
+  .slide { margin: auto; width: 100%; max-width: min(1500px, calc(100vw - 168px)); } /* leaves a gutter for the corner companion */
   .head { text-align: center; margin-bottom: 28px; }
   h1, h2, h3 { font-family: var(--font-disp); margin: 0; }
   h1 { font-size: var(--display-1); line-height: 0.98; letter-spacing: var(--tracking-tight); font-weight: 900; }
@@ -377,8 +381,6 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .tcard.locked { opacity: 0.4; cursor: default; }
   .shelf { margin-top: 20px; }
   .shelf > * { flex-basis: 170px; max-width: 230px; }
-  .out { background: var(--code-bg); border: 1px solid var(--line-2); padding: 10px 14px; font-family: var(--font-mono); font-size: 0.74em; color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
-  .out small { display: block; color: var(--faint); margin-bottom: 4px; font-family: var(--font-body); font-size: 0.95em; }
   table { border-collapse: collapse; width: 100%; font-size: 0.78em; margin-bottom: 8px; }
   th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
   th { color: var(--faint); font-weight: 600; font-family: var(--font-mono); font-size: 0.82em; text-transform: uppercase; letter-spacing: var(--tracking-caps); }
@@ -392,6 +394,7 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .ok { color: var(--spot); } .bad { color: var(--error); } .warn { color: var(--warning); } .faint { color: var(--faint); }
   .note { max-width: 46em; margin: 16px auto; padding: 8px 16px; color: var(--ink); background: var(--spot-soft); border-left: 3px solid var(--spot); }
   .note.warnnote { border-color: var(--warning); background: var(--warning-soft); }
+  .note.top { margin: 0 auto 12px; }
   .placeholder { max-width: 46em; margin: 16px auto 0; border: 1px dashed var(--faint); padding: 12px 16px; color: var(--faint); }
   .source { text-align: center; margin-top: 16px; }
   .big { font-family: var(--font-mono); font-size: 1.4em; color: var(--ink); }
@@ -408,8 +411,61 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .notes[hidden] { display: none; }
   .companion { position: fixed; left: 24px; bottom: 76px; display: flex; align-items: flex-end; gap: 10px; max-width: min(440px, 62vw); z-index: 4; pointer-events: none; }
   .companion[hidden] { display: none; }
+  .companion.crowded .bubble { display: none; }
   .bubble { background: var(--panel); border: 1px solid var(--line-2); padding: 8px 14px; font-size: 0.78em; color: var(--ink); line-height: 1.45; }
-  .hero-mascot { display: flex; justify-content: center; margin-bottom: 8px; }
+  .live { display: inline-flex; align-items: center; gap: 8px; color: var(--faint); }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--faint); }
+  .live.on i { background: var(--spot); }
+  .live.on { color: var(--dim); }
+  .live.off i { background: var(--warning); }
+  .live.off { color: var(--warning); }
+  .tag.live { color: var(--spot); border-color: var(--spot); }
+  .clickable { cursor: pointer; }
+  .clickable:hover td { background: var(--spot-soft); }
+  .rowbtn { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; }
+  .rowbtn .chev { color: var(--faint); transition: transform var(--duration-fast) var(--ease); }
+  .rowbtn[aria-expanded="true"] .chev { transform: rotate(90deg); color: var(--spot); }
+  .compact .detail td { white-space: normal; max-width: none; background: var(--panel); padding: 12px; }
+  .dgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; text-align: left; font-size: 1.05em; }
+  .dbox h3 { margin-bottom: 6px; }
+  .dbox pre { margin: 0; padding: 10px; background: var(--code-bg); border: 1px solid var(--line-2); font-family: var(--font-mono); font-size: var(--monosz); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; height: var(--detailh); overflow: auto; color: var(--ink); }
+  .dbox p { margin: 0 0 8px; color: var(--dim); font-size: 1em; }
+  .dbox .meta { display: block; margin-top: 6px; font-family: var(--font-mono); font-size: 0.85em; color: var(--faint); }
+  .dbox .why { color: var(--ink); font-style: normal; }
+  @media (max-width: 900px) { .dgrid { grid-template-columns: 1fr; } }
+  .runrow { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 8px; }
+  .runrow .meta { margin: 0; flex: 1 1 14em; }
+  .runnow { white-space: nowrap; }
+  .boxfix { margin: 0; display: grid; place-items: center; background: var(--code-bg); border: 1px solid var(--line-2); }
+  .dbox .boxfix { height: var(--detailh); }
+  .loader { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px; color: var(--dim); font-size: 0.85em; text-align: center; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--line-2); border-top-color: var(--spot); border-radius: 50%; animation: spin 0.8s linear infinite; vertical-align: -2px; margin-right: 8px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .loader-art { display: block; }
+  .claude-loader { display: block; }
+  .claude-loader svg { display: block; width: 100%; height: auto; }
+  .claude-loader .cl-body { animation: cl-bob 0.9s steps(1) infinite; }
+  .claude-loader .cl-arm-l { animation: cl-hop 0.45s steps(1) infinite; }
+  .claude-loader .cl-arm-r { animation: cl-hop 0.45s steps(1) infinite 0.225s; }
+  .claude-loader .cl-leg-a { animation: cl-hop 0.6s steps(1) infinite; }
+  .claude-loader .cl-leg-b { animation: cl-hop 0.6s steps(1) infinite 0.3s; }
+  .claude-loader .cl-eye { animation: cl-blink 3.2s steps(1) infinite; transform-box: fill-box; transform-origin: center; }
+  @keyframes cl-bob { 0% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes cl-hop { 0% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+  @keyframes cl-blink { 0%, 94% { transform: scaleY(1); } 95%, 100% { transform: scaleY(0.2); } }
+  .loader .elapsed { color: var(--faint); }
+  .grid4 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; text-align: left; }
+  .cell { background: var(--panel); border: 1px solid var(--line-2); padding: 8px 12px 10px; min-width: 0; }
+  .cellhead { font-size: 0.8em; color: var(--dim); margin-bottom: 2px; }
+  .cellhead b { color: var(--ink); font-family: var(--font-disp); font-weight: 800; }
+  .cellbody { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 8px; }
+  .cell h3 { font-size: 0.62em; margin: 6px 0 4px; }
+  .cell pre { margin: 0; height: var(--boxh); overflow: auto; padding: 8px 10px; background: var(--code-bg); border: 1px solid var(--line-2); font-family: var(--font-mono); font-size: var(--monosz); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--ink); }
+  .cell .boxfix { height: var(--boxh); }
+  .cell .loader { padding: 4px; font-size: 0.78em; gap: 2px; }
+  .cell .runrow { margin-top: 6px; }
+  .cell .meta { display: block; font-family: var(--font-mono); font-size: 0.7em; color: var(--faint); }
+  @media (max-width: 900px) { .grid4, .cellbody { grid-template-columns: 1fr; } .cell pre, .cell .boxfix { height: 130px; } }
   .head.dense { margin-bottom: 14px; }
   .head.dense h2 { font-size: clamp(24px, 2.4vw, 34px); }
   .head.dense .eyebrow { margin-bottom: 6px; }
@@ -417,27 +473,27 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .compact { font-size: 0.72em; }
   .compact th, .compact td { padding: 4px 8px; }
   .compact td.log { max-width: 340px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
-  .split pre.prompt { width: auto; min-width: 0; margin: 0; }
-  .stack > * + * { margin-top: 8px; }
-  @media (max-width: 900px) { .split { grid-template-columns: 1fr; } }
   ol.checks { margin: 0 auto; padding-left: 1.3em; color: var(--dim); max-width: 44em; }
   ol.checks li { margin-bottom: 8px; }
   ol.checks b { color: var(--ink); }
   .scroll { overflow-x: auto; }
+  /* Motion contract (.claude/rules/slides.md): one entrance, `rise`. Only what is new animates; `still` marks what was already there. */
   .reveal { animation: rise var(--duration-slow) var(--ease); }
+  pre.prompt .add { animation: rise var(--duration-slow) var(--ease); }
+  .still, pre.prompt .add.still { animation: none; }
   @keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
-  @media (max-width: 760px) { .companion { max-width: 78vw; } .bubble { font-size: 0.72em; } main { padding-bottom: 130px; } .crumb { display: none; } }
+  @media (max-width: 760px) { .companion { max-width: 78vw; } .bubble { font-size: 0.72em; } main { padding-bottom: 130px; } .crumb { display: none; } .live { font-size: 0; gap: 0; } header label { display: none; } .count { min-width: 0; white-space: nowrap; } header { gap: 10px; padding: 10px 14px; } header select { flex: 1; max-width: none; } }
   @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
 </style>
 </head>
 <body>
 <header>
-  <span class="brand"><i><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 4c5 2.5 5 13.5 0 16"/><line x1="6" y1="4" x2="6" y2="20"/><line x1="4" y1="12" x2="18" y2="12"/><polyline points="14.5 8.5 18 12 14.5 15.5"/></svg></i>Eklavya</span>
   <span class="mono" id="count"></span>
+  <span class="mono live" id="live" role="status"></span>
   <span class="crumb" id="crumb"></span>
   <label class="mono" for="jump">Jump to</label>
   <select id="jump" aria-label="Jump to a screen"></select>
+  <img class="logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiPz4KPHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNjUiIGhlaWdodD0iNDgiIHZpZXdCb3g9IjAgMCAxNjUgNDgiIGZpbGw9Im5vbmUiPgogIDxnIGNsaXAtcGF0aD0idXJsKCNjbGlwMF8zNzU0XzYwOTcpIj4KICAgIDxtYXNrIGlkPSJtYXNrMF8zNzU0XzYwOTciIHN0eWxlPSJtYXNrLXR5cGU6bHVtaW5hbmNlIiBtYXNrVW5pdHM9InVzZXJTcGFjZU9uVXNlIiB4PSIwIiB5PSIwIiB3aWR0aD0iNDgiIGhlaWdodD0iNDgiPgogICAgICA8cGF0aCBkPSJNNDggMEgwVjQ4SDQ4VjBaIiBmaWxsPSJ3aGl0ZSI+PC9wYXRoPgogICAgPC9tYXNrPgogICAgPGcgbWFzaz0idXJsKCNtYXNrMF8zNzU0XzYwOTcpIj4KICAgICAgPG1hc2sgaWQ9Im1hc2sxXzM3NTRfNjA5NyIgc3R5bGU9Im1hc2stdHlwZTpsdW1pbmFuY2UiIG1hc2tVbml0cz0idXNlclNwYWNlT25Vc2UiIHg9IjAiIHk9IjAiIHdpZHRoPSI0OCIgaGVpZ2h0PSI0OCI+CiAgICAgICAgPHBhdGggZD0iTTQ4IDBIMFY0OEg0OFYwWiIgZmlsbD0id2hpdGUiPjwvcGF0aD4KICAgICAgPC9tYXNrPgogICAgICA8ZyBtYXNrPSJ1cmwoI21hc2sxXzM3NTRfNjA5NykiPgogICAgICAgIDxwYXRoIGQ9Ik00NS42NTYyIDBIMi4zNDM3NUMxLjA0OTMzIDAgMCAxLjA0OTMzIDAgMi4zNDM3NVY0NS42NTYyQzAgNDYuOTUwNSAxLjA0OTMzIDQ4IDIuMzQzNzUgNDhINDUuNjU2MkM0Ni45NTA1IDQ4IDQ4IDQ2Ljk1MDUgNDggNDUuNjU2MlYyLjM0Mzc1QzQ4IDEuMDQ5MzMgNDYuOTUwNSAwIDQ1LjY1NjIgMFoiIGZpbGw9IiMwNTlENjYiPjwvcGF0aD4KICAgICAgICA8ZyBvcGFjaXR5PSIwLjQ2NTU5MiI+CiAgICAgICAgICA8cGF0aCBvcGFjaXR5PSIwLjQ2NTU5MiIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0zOS4xMDUzIDExLjQ1MzFIMjcuMzE3OVYxNS4zMzk5TDMxLjI3MzggMTkuMjkzMlYxNS4zMzg3SDM1LjIxMTJWMzQuOTQ0MUgzMi40MDQ0TDE5LjQ4NzUgMjIuMDExNVYyNy42MDc4TDMwLjc5MzYgMzguODMwOUgzOS4xMDUzVjExLjQ1MzFaIiBmaWxsPSIjNUY2MTYwIj48L3BhdGg+CiAgICAgICAgICA8cGF0aCBvcGFjaXR5PSIwLjQ2NTU5MiIgZmlsbC1ydWxlPSJldmVub2RkIiBjbGlwLXJ1bGU9ImV2ZW5vZGQiIGQ9Ik0xOS40ODc0IDMwLjk5NzhWMzQuOTQ0MUgxNS42MjM1VjE1LjMzODdIMTguNDA0NkwzMS4yNzM2IDI4LjI3MTRWMjIuNDUzNUwxOS45ODc0IDExLjQ1MzFIMTEuNjc5MlYzOC44MzA5SDIzLjQzNFYzNC45NDNMMTkuNDg3NCAzMC45OTc4WiIgZmlsbD0iIzVGNjE2MCI+PC9wYXRoPgogICAgICAgIDwvZz4KICAgICAgICA8cGF0aCBmaWxsLXJ1bGU9ImV2ZW5vZGQiIGNsaXAtcnVsZT0iZXZlbm9kZCIgZD0iTTM3LjczMTIgMTAuMDMxMkgyNS45NDM4VjEzLjkxOEwyOS44OTk4IDE3Ljg3MTNWMTMuOTE3SDMzLjgzN1YzMy41MjIySDMxLjAzMDRMMTguMTEzNSAyMC41ODk2VjI2LjE4NjFMMjkuNDE5NSAzNy40MDlIMzcuNzMxMlYxMC4wMzEyWiIgZmlsbD0iI0ZGRkZGRSI+PC9wYXRoPgogICAgICAgIDxwYXRoIGZpbGwtcnVsZT0iZXZlbm9kZCIgY2xpcC1ydWxlPSJldmVub2RkIiBkPSJNMTguMTEzMyAyOS41NzZWMzMuNTIyM0gxNC4yNDk1VjEzLjkxNjlIMTcuMDMwNUwyOS44OTk2IDI2Ljg0OTVWMjEuMDMxNkwxOC42MTM0IDEwLjAzMTJIMTAuMzA1MlYzNy40MDlIMjIuMDZWMzMuNTIxTDE4LjExMzMgMjkuNTc2WiIgZmlsbD0iI0ZGRkZGRSI+PC9wYXRoPgogICAgICA8L2c+CiAgICA8L2c+CiAgICA8cGF0aCBkPSJNNzMuODE0NSAxNC4wOTM4VjM0SDcwLjM4MjhMNjEuNDU1MSAxOS43NDAyVjM0SDU4LjAyMzRWMTQuMDkzOEg2MS40NTUxTDcwLjQxMDIgMjguMzgwOFYxNC4wOTM4SDczLjgxNDVaIiBmaWxsPSJ3aGl0ZSI+PC9wYXRoPgogICAgPHBhdGggZD0iTTc2Ljg4OTQgMjYuNzcxNVYyNi40NTdDNzYuODg5NCAyNS4zOTA2IDc3LjA0NDQgMjQuNDAxNyA3Ny4zNTQzIDIzLjQ5MDJDNzcuNjY0MiAyMi41Njk3IDc4LjExMDggMjEuNzcyMSA3OC42OTQxIDIxLjA5NzdDNzkuMjg2NSAyMC40MTQxIDgwLjAwNjYgMTkuODg1NCA4MC44NTQzIDE5LjUxMTdDODEuNzExIDE5LjEyODkgODIuNjc3MiAxOC45Mzc1IDgzLjc1MjcgMTguOTM3NUM4NC44MzczIDE4LjkzNzUgODUuODAzNSAxOS4xMjg5IDg2LjY1MTEgMTkuNTExN0M4Ny41MDc5IDE5Ljg4NTQgODguMjMyNSAyMC40MTQxIDg4LjgyNSAyMS4wOTc3Qzg5LjQxNzQgMjEuNzcyMSA4OS44Njg2IDIyLjU2OTcgOTAuMTc4NSAyMy40OTAyQzkwLjQ4ODQgMjQuNDAxNyA5MC42NDMzIDI1LjM5MDYgOTAuNjQzMyAyNi40NTdWMjYuNzcxNUM5MC42NDMzIDI3LjgzNzkgOTAuNDg4NCAyOC44MjY4IDkwLjE3ODUgMjkuNzM4M0M4OS44Njg2IDMwLjY0OTcgODkuNDE3NCAzMS40NDczIDg4LjgyNSAzMi4xMzA5Qzg4LjIzMjUgMzIuODA1MyA4Ny41MTI1IDMzLjMzNCA4Ni42NjQ4IDMzLjcxNjhDODUuODE3MSAzNC4wOTA1IDg0Ljg1NTYgMzQuMjc3MyA4My43OCAzNC4yNzczQzgyLjY5NTQgMzQuMjc3MyA4MS43MjQ3IDM0LjA5MDUgODAuODY3OSAzMy43MTY4QzgwLjAyMDMgMzMuMzM0IDc5LjMwMDIgMzIuODA1MyA3OC43MDc4IDMyLjEzMDlDNzguMTE1MyAzMS40NDczIDc3LjY2NDIgMzAuNjQ5NyA3Ny4zNTQzIDI5LjczODNDNzcuMDQ0NCAyOC44MjY4IDc2Ljg4OTQgMjcuODM3OSA3Ni44ODk0IDI2Ljc3MTVaTTgwLjE4NDMgMjYuNDU3VjI2Ljc3MTVDODAuMTg0MyAyNy40MzY4IDgwLjI1MjcgMjguMDY1NyA4MC4zODk0IDI4LjY1ODJDODAuNTI2MSAyOS4yNTA2IDgwLjc0MDMgMjkuNzcwMiA4MS4wMzIgMzAuMjE2OEM4MS4zMjM3IDMwLjY2MzQgODEuNjk3NCAzMS4wMTQzIDgyLjE1MzEgMzEuMjY5NUM4Mi42MDg4IDMxLjUyNDcgODMuMTUxMSAzMS42NTIzIDgzLjc4IDMxLjY1MjNDODQuMzkwNyAzMS42NTIzIDg0LjkxOTQgMzEuNTI0NyA4NS4zNjYgMzEuMjY5NUM4NS44MjE3IDMxLjAxNDMgODYuMTk1NCAzMC42NjM0IDg2LjQ4NzEgMzAuMjE2OEM4Ni43Nzg3IDI5Ljc3MDIgODYuOTkyOSAyOS4yNTA2IDg3LjEyOTYgMjguNjU4MkM4Ny4yNzU1IDI4LjA2NTcgODcuMzQ4NCAyNy40MzY4IDg3LjM0ODQgMjYuNzcxNVYyNi40NTdDODcuMzQ4NCAyNS44MDA4IDg3LjI3NTUgMjUuMTgxIDg3LjEyOTYgMjQuNTk3N0M4Ni45OTI5IDI0LjAwNTIgODYuNzc0MiAyMy40ODExIDg2LjQ3MzQgMjMuMDI1NEM4Ni4xODE3IDIyLjU2OTcgODUuODA4IDIyLjIxNDIgODUuMzUyMyAyMS45NTlDODQuOTA1NyAyMS42OTQ3IDg0LjM3MjUgMjEuNTYyNSA4My43NTI3IDIxLjU2MjVDODMuMTMyOSAyMS41NjI1IDgyLjU5NTEgMjEuNjk0NyA4Mi4xMzk0IDIxLjk1OUM4MS42OTI4IDIyLjIxNDIgODEuMzIzNyAyMi41Njk3IDgxLjAzMiAyMy4wMjU0QzgwLjc0MDMgMjMuNDgxMSA4MC41MjYxIDI0LjAwNTIgODAuMzg5NCAyNC41OTc3QzgwLjI1MjcgMjUuMTgxIDgwLjE4NDMgMjUuODAwOCA4MC4xODQzIDI2LjQ1N1oiIGZpbGw9IndoaXRlIj48L3BhdGg+CiAgICA8cGF0aCBkPSJNOTYuNjE2NCAyMi4zNjkxVjM0LjAwMzlIOTMuMzIxNVYxOS4yMTA5SDk2LjQyNUw5Ni42MTY0IDIyLjM2OTFaTTk2LjAyODUgMjYuMDYwNUw5NC45NjIxIDI2LjA0NjlDOTQuOTcxMiAyNC45OTg3IDk1LjExNzEgMjQuMDM3MSA5NS4zOTk2IDIzLjE2MjFDOTUuNjkxMyAyMi4yODcxIDk2LjA5MjMgMjEuNTM1MSA5Ni42MDI3IDIwLjkwNjJDOTcuMTIyMyAyMC4yNzczIDk3Ljc0MjEgMTkuNzk0MyA5OC40NjIxIDE5LjQ1N0M5OS4xODIyIDE5LjExMDcgOTkuOTg0MyAxOC45Mzc1IDEwMC44NjggMTguOTM3NUMxMDEuNTc5IDE4LjkzNzUgMTAyLjIyMiAxOS4wMzc4IDEwMi43OTYgMTkuMjM4M0MxMDMuMzggMTkuNDI5NyAxMDMuODc2IDE5Ljc0NDEgMTA0LjI4NiAyMC4xODE2QzEwNC43MDYgMjAuNjE5MSAxMDUuMDI1IDIxLjE4ODggMTA1LjI0MyAyMS44OTA2QzEwNS40NjIgMjIuNTgzMyAxMDUuNTcyIDIzLjQzNTUgMTA1LjU3MiAyNC40NDczVjM0LjAwMzlIMTAyLjI2M1YyNC40MzM2QzEwMi4yNjMgMjMuNzIyNyAxMDIuMTU4IDIzLjE2MjEgMTAxLjk0OSAyMi43NTE5QzEwMS43NDggMjIuMzMyNyAxMDEuNDUyIDIyLjAzNjUgMTAxLjA2IDIxLjg2MzNDMTAwLjY3NyAyMS42ODEgMTAwLjE5OSAyMS41ODk4IDk5LjYyNDIgMjEuNTg5OEM5OS4wNTkxIDIxLjU4OTggOTguNTUzMyAyMS43MDgzIDk4LjEwNjcgMjEuOTQ1M0M5Ny42NiAyMi4xODIzIDk3LjI4MTggMjIuNTA1OSA5Ni45NzE5IDIyLjkxNkM5Ni42NzExIDIzLjMyNjIgOTYuNDM4NyAyMy44MDAxIDk2LjI3NDYgMjQuMzM3OUM5Ni4xMTA2IDI0Ljg3NTYgOTYuMDI4NSAyNS40NDk5IDk2LjAyODUgMjYuMDYwNVoiIGZpbGw9IndoaXRlIj48L3BhdGg+CiAgICA8cGF0aCBkPSJNMTE5LjUwMiAyOC44MzJDMTE5LjUwMiAyOC40NDkyIDExOS40NDMgMjguMTA3NCAxMTkuMzI0IDI3LjgwNjZDMTE5LjIxNSAyNy40OTY3IDExOS4wMSAyNy4yMTg4IDExOC43MDkgMjYuOTcyN0MxMTguNDE3IDI2LjcxNzQgMTE4LjAwMyAyNi40NzE0IDExNy40NjUgMjYuMjM0NEMxMTYuOTM2IDI1Ljk4ODMgMTE2LjI1MyAyNS43MzMxIDExNS40MTQgMjUuNDY4OEMxMTQuNDg0IDI1LjE3NzEgMTEzLjYxOCAyNC44NDkgMTEyLjgxNiAyNC40ODQ0QzExMi4wMTQgMjQuMTE5OCAxMTEuMzA4IDIzLjY5NiAxMTAuNjk3IDIzLjIxMjlDMTEwLjA5NiAyMi43Mjk4IDEwOS42MjYgMjIuMTczOCAxMDkuMjg5IDIxLjU0NDlDMTA4Ljk1MiAyMC45MDY5IDEwOC43ODMgMjAuMTY4NiAxMDguNzgzIDE5LjMzMDFDMTA4Ljc4MyAxOC41MDk4IDEwOC45NTYgMTcuNzYyNCAxMDkuMzAzIDE3LjA4NzlDMTA5LjY1OCAxNi40MTM0IDExMC4xNTkgMTUuODM0NiAxMTAuODA3IDE1LjM1MTZDMTExLjQ1NCAxNC44NTk0IDExMi4yMTUgMTQuNDgxMSAxMTMuMDkgMTQuMjE2OEMxMTMuOTc0IDEzLjk1MjUgMTE0Ljk0OSAxMy44MjAzIDExNi4wMTYgMTMuODIwM0MxMTcuNDkyIDEzLjgyMDMgMTE4Ljc2OCAxNC4wODkyIDExOS44NDQgMTQuNjI3QzEyMC45MjggMTUuMTY0NyAxMjEuNzY3IDE1Ljg5MzkgMTIyLjM1OSAxNi44MTQ1QzEyMi45NTIgMTcuNzM1IDEyMy4yNDggMTguNzY5NSAxMjMuMjQ4IDE5LjkxOEgxMTkuNTAyQzExOS41MDIgMTkuMjk4MiAxMTkuMzcgMTguNzUxMyAxMTkuMTA1IDE4LjI3NzNDMTE4Ljg1IDE3LjgwMzQgMTE4LjQ1OCAxNy40Mjk3IDExNy45MyAxNy4xNTYyQzExNy40MSAxNi44ODI4IDExNi43NTQgMTYuNzQ2MSAxMTUuOTYxIDE2Ljc0NjFDMTE1LjE5NSAxNi43NDYxIDExNC41NTcgMTYuODYgMTE0LjA0NyAxNy4wODc5QzExMy41NDYgMTcuMzE1OCAxMTMuMTY3IDE3LjYyNTcgMTEyLjkxMiAxOC4wMTc2QzExMi42NjYgMTguNDA5NSAxMTIuNTQzIDE4Ljg0NyAxMTIuNTQzIDE5LjMzMDFDMTEyLjU0MyAxOS42OTQ3IDExMi42MyAyMC4wMjI4IDExMi44MDMgMjAuMzE0NUMxMTIuOTc2IDIwLjU5NyAxMTMuMjM2IDIwLjg2NTkgMTEzLjU4MiAyMS4xMjExQzExMy45MjggMjEuMzY3MiAxMTQuMzU3IDIxLjU5OTYgMTE0Ljg2NyAyMS44MTg0QzExNS4zODcgMjIuMDI4IDExNS45ODggMjIuMjM3NiAxMTYuNjcyIDIyLjQ0NzNDMTE3Ljc2NiAyMi43NzU0IDExOC43MjMgMjMuMTQgMTE5LjU0MyAyMy41NDFDMTIwLjM3MiAyMy45NDIxIDEyMS4wNjEgMjQuMzk3OCAxMjEuNjA3IDI0LjkwODJDMTIyLjE2MyAyNS40MTg2IDEyMi41NzggMjUuOTkyOCAxMjIuODUyIDI2LjYzMDlDMTIzLjEzNCAyNy4yNjg5IDEyMy4yNzUgMjcuOTkzNSAxMjMuMjc1IDI4LjgwNDdDMTIzLjI3NSAyOS42NjE1IDEyMy4xMDcgMzAuNDI3MSAxMjIuNzcgMzEuMTAxNkMxMjIuNDMyIDMxLjc3NiAxMjEuOTQ5IDMyLjM1MDMgMTIxLjMyIDMyLjgyNDJDMTIwLjY5MSAzMy4yOTgyIDExOS45MzUgMzMuNjU4MiAxMTkuMDUxIDMzLjkwNDNDMTE4LjE3NiAzNC4xNTA0IDExNy4xOTYgMzQuMjczNCAxMTYuMTExIDM0LjI3MzRDMTE1LjE0NSAzNC4yNzM0IDExNC4xODggMzQuMTQ1OCAxMTMuMjQgMzMuODkwNkMxMTIuMzAxIDMzLjYyNjMgMTExLjQ0OSAzMy4yMzQ0IDExMC42ODQgMzIuNzE0OEMxMDkuOTE4IDMyLjE4NjIgMTA5LjMwNyAzMS41MjA4IDEwOC44NTIgMzAuNzE4OEMxMDguMzk2IDI5LjkwNzYgMTA4LjE2OCAyOC45NTk2IDEwOC4xNjggMjcuODc1SDExMS45NDFDMTExLjk0MSAyOC41MDM5IDExMi4wNDIgMjkuMDQxNyAxMTIuMjQyIDI5LjQ4ODNDMTEyLjQ1MiAyOS45MjU4IDExMi43NDMgMzAuMjg1OCAxMTMuMTE3IDMwLjU2ODRDMTEzLjUgMzAuODQxOCAxMTMuOTQ3IDMxLjA0MjMgMTE0LjQ1NyAzMS4xNjk5QzExNC45NjcgMzEuMjk3NSAxMTUuNTE5IDMxLjM2MTMgMTE2LjExMSAzMS4zNjEzQzExNi44NzcgMzEuMzYxMyAxMTcuNTA2IDMxLjI1NjUgMTE3Ljk5OCAzMS4wNDY5QzExOC40OTkgMzAuODI4MSAxMTguODczIDMwLjUyNzMgMTE5LjExOSAzMC4xNDQ1QzExOS4zNzQgMjkuNzYxNyAxMTkuNTAyIDI5LjMyNDIgMTE5LjUwMiAyOC44MzJaIiBmaWxsPSJ3aGl0ZSI+PC9wYXRoPgogICAgPHBhdGggZD0iTTEzMy4zNCAxOS4yMDg5VjIxLjYxNTJIMTI1VjE5LjIwODlIMTMzLjM0Wk0xMjcuNDA2IDE1LjU4NTlIMTMwLjcwMVYyOS45MTRDMTMwLjcwMSAzMC4zNjk3IDEzMC43NjUgMzAuNzIwNyAxMzAuODkzIDMwLjk2NjdDMTMxLjAyOSAzMS4yMDM3IDEzMS4yMTYgMzEuMzYzMiAxMzEuNDUzIDMxLjQ0NTNDMTMxLjY5IDMxLjUyNzMgMTMxLjk2OCAzMS41NjgzIDEzMi4yODcgMzEuNTY4M0MxMzIuNTE1IDMxLjU2ODMgMTMyLjczNCAzMS41NTQ2IDEzMi45NDMgMzEuNTI3M0MxMzMuMTUzIDMxLjQ5OTkgMTMzLjMyMiAzMS40NzI2IDEzMy40NDkgMzEuNDQ1M0wxMzMuNDYzIDMzLjk2MDlDMTMzLjE4OSAzNC4wNDI5IDEzMi44NyAzNC4xMTU4IDEzMi41MDYgMzQuMTc5NkMxMzIuMTUgMzQuMjQzNCAxMzEuNzQgMzQuMjc1MyAxMzEuMjc1IDM0LjI3NTNDMTMwLjUxOSAzNC4yNzUzIDEyOS44NDkgMzQuMTQzMiAxMjkuMjY2IDMzLjg3ODlDMTI4LjY4MiAzMy42MDU0IDEyOC4yMjcgMzMuMTYzNCAxMjcuODk4IDMyLjU1MjdDMTI3LjU3IDMxLjk0MiAxMjcuNDA2IDMxLjEzMDggMTI3LjQwNiAzMC4xMTkxVjE1LjU4NTlaIiBmaWxsPSJ3aGl0ZSI+PC9wYXRoPgogICAgPHBhdGggZD0iTTEzNC44NyAyNi43NzE1VjI2LjQ1N0MxMzQuODcgMjUuMzkwNiAxMzUuMDI1IDI0LjQwMTcgMTM1LjMzNSAyMy40OTAyQzEzNS42NDUgMjIuNTY5NyAxMzYuMDkxIDIxLjc3MjEgMTM2LjY3NCAyMS4wOTc3QzEzNy4yNjcgMjAuNDE0MSAxMzcuOTg3IDE5Ljg4NTQgMTM4LjgzNSAxOS41MTE3QzEzOS42OTEgMTkuMTI4OSAxNDAuNjU4IDE4LjkzNzUgMTQxLjczMyAxOC45Mzc1QzE0Mi44MTggMTguOTM3NSAxNDMuNzg0IDE5LjEyODkgMTQ0LjYzMiAxOS41MTE3QzE0NS40ODggMTkuODg1NCAxNDYuMjEzIDIwLjQxNDEgMTQ2LjgwNSAyMS4wOTc3QzE0Ny4zOTggMjEuNzcyMSAxNDcuODQ5IDIyLjU2OTcgMTQ4LjE1OSAyMy40OTAyQzE0OC40NjkgMjQuNDAxNyAxNDguNjI0IDI1LjM5MDYgMTQ4LjYyNCAyNi40NTdWMjYuNzcxNUMxNDguNjI0IDI3LjgzNzkgMTQ4LjQ2OSAyOC44MjY4IDE0OC4xNTkgMjkuNzM4M0MxNDcuODQ5IDMwLjY0OTcgMTQ3LjM5OCAzMS40NDczIDE0Ni44MDUgMzIuMTMwOUMxNDYuMjEzIDMyLjgwNTMgMTQ1LjQ5MyAzMy4zMzQgMTQ0LjY0NSAzMy43MTY4QzE0My43OTggMzQuMDkwNSAxNDIuODM2IDM0LjI3NzMgMTQxLjc2IDM0LjI3NzNDMTQwLjY3NiAzNC4yNzczIDEzOS43MDUgMzQuMDkwNSAxMzguODQ4IDMzLjcxNjhDMTM4LjAwMSAzMy4zMzQgMTM3LjI4MSAzMi44MDUzIDEzNi42ODggMzIuMTMwOUMxMzYuMDk2IDMxLjQ0NzMgMTM1LjY0NSAzMC42NDk3IDEzNS4zMzUgMjkuNzM4M0MxMzUuMDI1IDI4LjgyNjggMTM0Ljg3IDI3LjgzNzkgMTM0Ljg3IDI2Ljc3MTVaTTEzOC4xNjUgMjYuNDU3VjI2Ljc3MTVDMTM4LjE2NSAyNy40MzY4IDEzOC4yMzMgMjguMDY1NyAxMzguMzcgMjguNjU4MkMxMzguNTA3IDI5LjI1MDYgMTM4LjcyMSAyOS43NzAyIDEzOS4wMTIgMzAuMjE2OEMxMzkuMzA0IDMwLjY2MzQgMTM5LjY3OCAzMS4wMTQzIDE0MC4xMzMgMzEuMjY5NUMxNDAuNTg5IDMxLjUyNDcgMTQxLjEzMiAzMS42NTIzIDE0MS43NiAzMS42NTIzQzE0Mi4zNzEgMzEuNjUyMyAxNDIuOSAzMS41MjQ3IDE0My4zNDYgMzEuMjY5NUMxNDMuODAyIDMxLjAxNDMgMTQ0LjE3NiAzMC42NjM0IDE0NC40NjcgMzAuMjE2OEMxNDQuNzU5IDI5Ljc3MDIgMTQ0Ljk3MyAyOS4yNTA2IDE0NS4xMSAyOC42NTgyQzE0NS4yNTYgMjguMDY1NyAxNDUuMzI5IDI3LjQzNjggMTQ1LjMyOSAyNi43NzE1VjI2LjQ1N0MxNDUuMzI5IDI1LjgwMDggMTQ1LjI1NiAyNS4xODEgMTQ1LjExIDI0LjU5NzdDMTQ0Ljk3MyAyNC4wMDUyIDE0NC43NTUgMjMuNDgxMSAxNDQuNDU0IDIzLjAyNTRDMTQ0LjE2MiAyMi41Njk3IDE0My43ODggMjIuMjE0MiAxNDMuMzMzIDIxLjk1OUMxNDIuODg2IDIxLjY5NDcgMTQyLjM1MyAyMS41NjI1IDE0MS43MzMgMjEuNTYyNUMxNDEuMTEzIDIxLjU2MjUgMTQwLjU3NiAyMS42OTQ3IDE0MC4xMiAyMS45NTlDMTM5LjY3MyAyMi4yMTQyIDEzOS4zMDQgMjIuNTY5NyAxMzkuMDEyIDIzLjAyNTRDMTM4LjcyMSAyMy40ODExIDEzOC41MDcgMjQuMDA1MiAxMzguMzcgMjQuNTk3N0MxMzguMjMzIDI1LjE4MSAxMzguMTY1IDI1LjgwMDggMTM4LjE2NSAyNi40NTdaIiBmaWxsPSJ3aGl0ZSI+PC9wYXRoPgogICAgPHBhdGggZD0iTTE1NC42MzggMjIuMDU0N1YzOS42OTE0SDE1MS4zNDNWMTkuMjEwOUgxNTQuMzc4TDE1NC42MzggMjIuMDU0N1pNMTY0LjI3NyAyNi40NzA3VjI2Ljc1NzhDMTY0LjI3NyAyNy44MzMzIDE2NC4xNDkgMjguODMxNCAxNjMuODk0IDI5Ljc1MTlDMTYzLjY0OCAzMC42NjM0IDE2My4yNzkgMzEuNDYwOSAxNjIuNzg2IDMyLjE0NDVDMTYyLjMwMyAzMi44MTkgMTYxLjcwNiAzMy4zNDMxIDE2MC45OTUgMzMuNzE2OEMxNjAuMjg0IDM0LjA5MDUgMTU5LjQ2NCAzNC4yNzczIDE1OC41MzQgMzQuMjc3M0MxNTcuNjE0IDM0LjI3NzMgMTU2LjgwNyAzNC4xMDg3IDE1Ni4xMTUgMzMuNzcxNUMxNTUuNDMxIDMzLjQyNTEgMTU0Ljg1MiAzMi45Mzc1IDE1NC4zNzggMzIuMzA4NkMxNTMuOTA0IDMxLjY3OTcgMTUzLjUyMSAzMC45NDE0IDE1My4yMyAzMC4wOTM3QzE1Mi45NDcgMjkuMjM3IDE1Mi43NDcgMjguMjk4MiAxNTIuNjI4IDI3LjI3NzNWMjYuMTY5OUMxNTIuNzQ3IDI1LjA4NTMgMTUyLjk0NyAyNC4xMDA5IDE1My4yMyAyMy4yMTY4QzE1My41MjEgMjIuMzMyNyAxNTMuOTA0IDIxLjU3MTYgMTU0LjM3OCAyMC45MzM2QzE1NC44NTIgMjAuMjk1NiAxNTUuNDMxIDE5LjgwMzQgMTU2LjExNSAxOS40NTdDMTU2Ljc5OCAxOS4xMTA3IDE1Ny41OTYgMTguOTM3NSAxNTguNTA3IDE4LjkzNzVDMTU5LjQzNyAxOC45Mzc1IDE2MC4yNjIgMTkuMTE5OCAxNjAuOTgyIDE5LjQ4NDRDMTYxLjcwMiAxOS44Mzk4IDE2Mi4zMDggMjAuMzUwMyAxNjIuOCAyMS4wMTU2QzE2My4yOTIgMjEuNjcxOSAxNjMuNjYxIDIyLjQ2NDggMTYzLjkwOCAyMy4zOTQ1QzE2NC4xNTQgMjQuMzE1MSAxNjQuMjc3IDI1LjM0MDUgMTY0LjI3NyAyNi40NzA3Wk0xNjAuOTgyIDI2Ljc1NzhWMjYuNDcwN0MxNjAuOTgyIDI1Ljc4NzEgMTYwLjkxOCAyNS4xNTM2IDE2MC43OSAyNC41NzAzQzE2MC42NjMgMjMuOTc3OSAxNjAuNDYyIDIzLjQ1ODMgMTYwLjE4OSAyMy4wMTE3QzE1OS45MTUgMjIuNTY1MSAxNTkuNTY0IDIyLjIxODcgMTU5LjEzNiAyMS45NzI3QzE1OC43MTcgMjEuNzE3NCAxNTguMjExIDIxLjU4OTggMTU3LjYxOCAyMS41ODk4QzE1Ny4wMzUgMjEuNTg5OCAxNTYuNTM0IDIxLjY5MDEgMTU2LjExNSAyMS44OTA2QzE1NS42OTUgMjIuMDgyIDE1NS4zNDQgMjIuMzUwOSAxNTUuMDYyIDIyLjY5NzNDMTU0Ljc3OSAyMy4wNDM2IDE1NC41NjEgMjMuNDQ5MiAxNTQuNDA2IDIzLjkxNDFDMTU0LjI1MSAyNC4zNjk4IDE1NC4xNDEgMjQuODY2NSAxNTQuMDc3IDI1LjQwNDNWMjguMDU2NkMxNTQuMTg3IDI4LjcxMjkgMTU0LjM3NCAyOS4zMTQ0IDE1NC42MzggMjkuODYxM0MxNTQuOTAyIDMwLjQwODIgMTU1LjI3NiAzMC44NDU3IDE1NS43NTkgMzEuMTczOEMxNTYuMjUxIDMxLjQ5MjggMTU2Ljg4IDMxLjY1MjMgMTU3LjY0NiAzMS42NTIzQzE1OC4yMzggMzEuNjUyMyAxNTguNzQ0IDMxLjUyNDcgMTU5LjE2MyAzMS4yNjk1QzE1OS41ODMgMzEuMDE0MyAxNTkuOTI0IDMwLjY2MzQgMTYwLjE4OSAzMC4yMTY4QzE2MC40NjIgMjkuNzYxMSAxNjAuNjYzIDI5LjIzNyAxNjAuNzkgMjguNjQ0NUMxNjAuOTE4IDI4LjA1MjEgMTYwLjk4MiAyNy40MjMyIDE2MC45ODIgMjYuNzU3OFoiIGZpbGw9IndoaXRlIj48L3BhdGg+CiAgICA8cGF0aCBkPSJNMTE5LjUwMiAyOC44MzJDMTE5LjUwMiAyOC40NDkyIDExOS40NDMgMjguMTA3NCAxMTkuMzI0IDI3LjgwNjZDMTE5LjIxNSAyNy40OTY3IDExOS4wMSAyNy4yMTg4IDExOC43MDkgMjYuOTcyN0MxMTguNDE3IDI2LjcxNzQgMTE4LjAwMyAyNi40NzE0IDExNy40NjUgMjYuMjM0NEMxMTYuOTM2IDI1Ljk4ODMgMTE2LjI1MyAyNS43MzMxIDExNS40MTQgMjUuNDY4OEMxMTQuNDg0IDI1LjE3NzEgMTEzLjYxOCAyNC44NDkgMTEyLjgxNiAyNC40ODQ0QzExMi4wMTQgMjQuMTE5OCAxMTEuMzA4IDIzLjY5NiAxMTAuNjk3IDIzLjIxMjlDMTEwLjA5NiAyMi43Mjk4IDEwOS42MjYgMjIuMTczOCAxMDkuMjg5IDIxLjU0NDlDMTA4Ljk1MiAyMC45MDY5IDEwOC43ODMgMjAuMTY4NiAxMDguNzgzIDE5LjMzMDFDMTA4Ljc4MyAxOC41MDk4IDEwOC45NTYgMTcuNzYyNCAxMDkuMzAzIDE3LjA4NzlDMTA5LjY1OCAxNi40MTM0IDExMC4xNiAxNS44MzQ2IDExMC44MDcgMTUuMzUxNkMxMTEuNDU0IDE0Ljg1OTQgMTEyLjIxNSAxNC40ODExIDExMy4wOSAxNC4yMTY4QzExMy45NzQgMTMuOTUyNSAxMTQuOTQ5IDEzLjgyMDMgMTE2LjAxNiAxMy44MjAzQzExNy40OTIgMTMuODIwMyAxMTguNzY4IDE0LjA4OTIgMTE5Ljg0NCAxNC42MjdDMTIwLjkyOCAxNS4xNjQ3IDEyMS43NjcgMTUuODkzOSAxMjIuMzU5IDE2LjgxNDVDMTIyLjk1MiAxNy43MzUgMTIzLjI0OCAxOC43Njk1IDEyMy4yNDggMTkuOTE4SDExOS41MDJDMTE5LjUwMiAxOS4yOTgyIDExOS4zNyAxOC43NTEzIDExOS4xMDUgMTguMjc3M0MxMTguODUgMTcuODAzNCAxMTguNDU4IDE3LjQyOTcgMTE3LjkzIDE3LjE1NjJDMTE3LjQxIDE2Ljg4MjggMTE2Ljc1NCAxNi43NDYxIDExNS45NjEgMTYuNzQ2MUMxMTUuMTk1IDE2Ljc0NjEgMTE0LjU1NyAxNi44NiAxMTQuMDQ3IDE3LjA4NzlDMTEzLjU0NiAxNy4zMTU4IDExMy4xNjcgMTcuNjI1NyAxMTIuOTEyIDE4LjAxNzZDMTEyLjY2NiAxOC40MDk1IDExMi41NDMgMTguODQ3IDExMi41NDMgMTkuMzMwMUMxMTIuNTQzIDE5LjY5NDcgMTEyLjYzIDIwLjAyMjggMTEyLjgwMyAyMC4zMTQ1QzExMi45NzYgMjAuNTk3IDExMy4yMzYgMjAuODY1OSAxMTMuNTgyIDIxLjEyMTFDMTEzLjkyOCAyMS4zNjcyIDExNC4zNTcgMjEuNTk5NiAxMTQuODY3IDIxLjgxODRDMTE1LjM4NyAyMi4wMjggMTE1Ljk4OCAyMi4yMzc2IDExNi42NzIgMjIuNDQ3M0MxMTcuNzY2IDIyLjc3NTQgMTE4LjcyMyAyMy4xNCAxMTkuNTQzIDIzLjU0MUMxMjAuMzcyIDIzLjk0MjEgMTIxLjA2MSAyNC4zOTc4IDEyMS42MDcgMjQuOTA4MkMxMjIuMTYzIDI1LjQxODYgMTIyLjU3OCAyNS45OTI4IDEyMi44NTIgMjYuNjMwOUMxMjMuMTM0IDI3LjI2ODkgMTIzLjI3NSAyNy45OTM1IDEyMy4yNzUgMjguODA0N0MxMjMuMjc1IDI5LjY2MTUgMTIzLjEwNyAzMC40MjcxIDEyMi43NyAzMS4xMDE2QzEyMi40MzIgMzEuNzc2IDEyMS45NDkgMzIuMzUwMyAxMjEuMzIgMzIuODI0MkMxMjAuNjkxIDMzLjI5ODIgMTE5LjkzNSAzMy42NTgyIDExOS4wNTEgMzMuOTA0M0MxMTguMTc2IDM0LjE1MDQgMTE3LjE5NiAzNC4yNzM0IDExNi4xMTEgMzQuMjczNEMxMTUuMTQ1IDM0LjI3MzQgMTE0LjE4OCAzNC4xNDU4IDExMy4yNCAzMy44OTA2QzExMi4zMDEgMzMuNjI2MyAxMTEuNDQ5IDMzLjIzNDQgMTEwLjY4NCAzMi43MTQ4QzEwOS45MTggMzIuMTg2MiAxMDkuMzA3IDMxLjUyMDggMTA4Ljg1MiAzMC43MTg4QzEwOC4zOTYgMjkuOTA3NiAxMDguMTY4IDI4Ljk1OTYgMTA4LjE2OCAyNy44NzVIMTExLjk0MUMxMTEuOTQxIDI4LjUwMzkgMTEyLjA0MiAyOS4wNDE3IDExMi4yNDIgMjkuNDg4M0MxMTIuNDUyIDI5LjkyNTggMTEyLjc0MyAzMC4yODU4IDExMy4xMTcgMzAuNTY4NEMxMTMuNSAzMC44NDE4IDExMy45NDcgMzEuMDQyMyAxMTQuNDU3IDMxLjE2OTlDMTE0Ljk2NyAzMS4yOTc1IDExNS41MTkgMzEuMzYxMyAxMTYuMTExIDMxLjM2MTNDMTE2Ljg3NyAzMS4zNjEzIDExNy41MDYgMzEuMjU2NSAxMTcuOTk4IDMxLjA0NjlDMTE4LjQ5OSAzMC44MjgxIDExOC44NzMgMzAuNTI3MyAxMTkuMTE5IDMwLjE0NDVDMTE5LjM3NCAyOS43NjE3IDExOS41MDIgMjkuMzI0MiAxMTkuNTAyIDI4LjgzMloiIGZpbGw9IiMwNTlENjYiPjwvcGF0aD4KICAgIDxwYXRoIGQ9Ik0xNTIuMzg2IDIuODA2ODJWMi4xODE4MkgxNTYuNzVWMi44MDY4MkgxNTQuOTJWOEgxNTQuMjE2VjIuODA2ODJIMTUyLjM4NlpNMTU3LjgzNyAyLjE4MTgySDE1OC42NzhMMTYwLjY1NiA3LjAxMTM2SDE2MC43MjRMMTYyLjcwMSAyLjE4MTgySDE2My41NDJWOEgxNjIuODgzVjMuNTc5NTVIMTYyLjgyNkwxNjEuMDA4IDhIMTYwLjM3MUwxNTguNTUzIDMuNTc5NTVIMTU4LjQ5NlY4SDE1Ny44MzdWMi4xODE4MloiIGZpbGw9IndoaXRlIj48L3BhdGg+CiAgPC9nPgogIDxkZWZzPgogICAgPGNsaXBQYXRoIGlkPSJjbGlwMF8zNzU0XzYwOTciPgogICAgICA8cmVjdCB3aWR0aD0iMTY1IiBoZWlnaHQ9IjQ4IiBmaWxsPSJ3aGl0ZSI+PC9yZWN0PgogICAgPC9jbGlwUGF0aD4KICA8L2RlZnM+Cjwvc3ZnPgo=" alt="NonStop io">
 </header>
 <main id="main" tabindex="-1"><div class="stage"><div class="slide" id="slide"></div></div></main>
 <aside class="notes" id="notes" hidden></aside>
@@ -568,20 +624,6 @@ const LOGS = [
 
 // Fixed model outputs per prompt version, so the demo never calls a model.
 const OUT = {
-  v1: {
-    1: "This looks like a schema problem: a column is missing from the source.",
-    2: "The file did not arrive in time.",
-    3: "Out of memory.",
-    4: "The Spark executor was killed, probably memory.",
-    5: "Spark can't find the column device_type.",
-    6: "The checkpoint is behind.",
-    7: "A data quality test failed because of null values.",
-    8: "Can't connect to the warehouse.",
-    9: "Duplicate ids found.",
-    10: "A Kafka broker is down.",
-    11: "Nothing arrived on the topic.",
-    12: "A type mismatch while reading a message.",
-  },
   v2: {
     1: ["SCHEMA_DRIFT", "A column the job expects is missing from the source."],
     2: ["LATE_DATA", "The expected file never arrived before the sensor timed out."],
@@ -633,13 +675,12 @@ const rawOf = (v, id) => {
 };
 
 // Gates first, then quality: a failed gate keeps the score under 0.5.
-function judge(v, log) {
-  const raw = rawOf(v, log.id);
+function scoreReply(raw, expected) {
   let o = null;
-  try { o = JSON.parse(raw); } catch (e) { o = null; }
+  try { o = JSON.parse(raw.trim()); } catch (e) { o = null; }
   const json = !!(o && typeof o.label === "string" && typeof o.reason === "string");
   const allowed = json && LABELS.includes(o.label);
-  const correct = allowed && o.label === log.exp;
+  const correct = allowed && o.label === expected;
   const passed = [json, allowed, correct].filter(Boolean).length;
   let score;
   if (passed === 3) {
@@ -648,8 +689,9 @@ function judge(v, log) {
   } else {
     score = (passed / 3) * 0.5;
   }
-  return { raw, json, allowed, correct, score };
+  return { raw, json, allowed, correct, score, words: json ? o.reason.trim().split(/\s+/).length : null };
 }
+function judge(v, log) { return scoreReply(rawOf(v, log.id), log.exp); }
 const inSet = (l, ext) => !l.added || ext;
 const mean = (v, split, ext) => {
   const rows = LOGS.filter((l) => l.split === split && inSet(l, ext));
@@ -720,13 +762,165 @@ const ADD3 = [
 const ADD4 = ["A field whose type disagrees with the schema is SCHEMA_DRIFT."];
 
 const SAMPLE = [1, 5, 7, 11];
-const logCard = (l, v) => `<div class="out"><small>${esc(l.pipe)} · log ${l.id}: ${esc(l.text)}</small>${esc(rawOf(v, l.id))}</div>`;
 const splitPill = (s) => `<span class="pill ${s}">${s}</span>`;
 const head = (eyebrow, title, lede, dense) => `<div class="head${dense ? " dense" : ""}"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${lede ? `<p class="lede">${lede}</p>` : ""}</div>`;
 const link = (href, text) => `<a href="${href}" target="_blank" rel="noopener">${esc(text)}</a>`;
 
+/* ---------- live model calls ----------
+   Versions 1 and 2 run for real through server.mjs, which calls `claude -p`: one model acts, a different one
+   grades. Nothing is mocked on these screens. If the server is not running, they say so instead of inventing output. */
+const R = { status: "checking", actor: "", grader: "", mode: "live", act: { v1: {}, v2: {} }, grade: { v1: {}, v2: {} }, err: {}, busy: new Set(), since: {}, recorded: 0, confirmReset: false, note: "" };
+const nice = (m) => String(m || "").replace(/^claude-/, "").replace(/-(\d)-(\d)$/, " $1.$2").replace(/^./, (c) => c.toUpperCase());
+const segText = (segs) => segs.map((x) => x.t).join("");
+const livePrompt = (v) => segText(v === "v1" ? v2Segs(0) : v2Segs(5));
+const ALL = LOGS.filter((l) => !l.added);
+const busyAdd = (key) => { R.busy.add(key); R.since[key] = Date.now(); };
+async function api(url, body) {
+  const res = await fetch(url, { method: "POST", headers: { "content-type": "application/json", "x-walkthrough": "1" }, body: JSON.stringify(body) });
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error(j.error || res.statusText);
+  return j;
+}
+let redrawQueued = false;
+const redraw = () => { if (redrawQueued) return; redrawQueued = true; requestAnimationFrame(() => { redrawQueued = false; draw(); }); };
+async function pool(jobs, n) { let i = 0; await Promise.all(Array.from({ length: Math.min(n, jobs.length) }, async () => { while (i < jobs.length) await jobs[i++](); })); }
+// Asks the actor for each log (and, when asked, the grader for each reply). Safe to call on every draw: it skips what is done, running or failed.
+function ensure(v, ids, withGrade) {
+  if (R.status !== "live") return;
+  const jobs = [];
+  for (const id of ids) {
+    const log = LOGS.find((l) => l.id === id), ka = `a:${v}:${id}`, kg = `g:${v}:${id}`;
+    const needAct = !R.act[v][id] && !R.busy.has(ka) && !R.err[ka];
+    const needGrade = withGrade && !R.grade[v][id] && !R.busy.has(kg) && !R.err[kg] && (R.act[v][id] || needAct);
+    if (!needAct && !needGrade) continue;
+    if (needAct) busyAdd(ka);
+    if (needGrade) busyAdd(kg);
+    jobs.push(async () => {
+      if (needAct) {
+        try { R.act[v][id] = await api("/api/act", { prompt: livePrompt(v).replace("{{log}}", log.text) }); } catch (e) { R.err[ka] = String(e.message || e); }
+        R.busy.delete(ka); redraw();
+      }
+      if (needGrade) {
+        if (R.act[v][id]) { try { R.grade[v][id] = await api("/api/grade", { log: log.text, expected: log.exp, reply: R.act[v][id].text }); } catch (e) { R.err[kg] = String(e.message || e); } }
+        R.busy.delete(kg); redraw();
+      }
+    });
+  }
+  if (jobs.length) { redraw(); pool(jobs, 4); }
+}
+// The same three gates as the mocks, on a real reply. null while the model has not answered yet.
+function liveJudge(v, l) {
+  const a = R.act[v][l.id];
+  if (!a) return null;
+  const g = R.grade[v][l.id];
+  return { ...scoreReply(a.text, l.exp), right: g ? g.rightIdea : null, why: g ? g.why : "" };
+}
+function liveMean(v, split) {
+  const js = ALL.filter((l) => l.split === split).map((l) => liveJudge(v, l));
+  return js.some((j) => !j) ? null : js.reduce((t, j) => t + j.score, 0) / js.length;
+}
+// Waiting for a model: the working critter (src/claude-loader.svg), what it waits for and the seconds so far. Small waits use the ring.
+const spinner = `<span class="spinner" aria-hidden="true"></span>`;
+const CLAUDE_LOADER = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 72" shape-rendering="crispEdges" role="img" aria-label="Working"> <g class="cl-legs"> <g class="cl-leg-a" fill="var(--term-claude)"><rect x="24" y="48" width="8" height="12"/><rect x="52" y="48" width="8" height="12"/></g> <g class="cl-leg-b" fill="var(--term-claude)"><rect x="36" y="48" width="8" height="12"/><rect x="64" y="48" width="8" height="12"/></g> </g> <g class="cl-body"> <rect class="cl-arm-l" x="4" y="24" width="12" height="8" fill="var(--term-claude)"/> <rect class="cl-arm-r" x="80" y="24" width="12" height="8" fill="var(--term-claude)"/> <rect x="16" y="12" width="64" height="36" fill="var(--term-claude)"/> <rect class="cl-eye" x="32" y="24" width="8" height="12" fill="var(--bg)"/> <rect class="cl-eye" x="56" y="24" width="8" height="12" fill="var(--bg)"/> </g> </svg>`;
+const claudeLoader = (width) => `<span class="claude-loader" style="width:${width}px">${CLAUDE_LOADER}</span>`;
+const loader = (what, key, width = 96) => `<div class="loader" role="status"><span class="loader-art">${claudeLoader(width)}</span><span>${esc(what)}</span><span class="mono elapsed" data-since="${R.since[key] || Date.now()}">0 s</span></div>`;
+const when = (a) => a && a.at ? new Date(a.at).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "time not recorded";
+const metaLine = (a) => `${nice(a.model)} · ${when(a)} · ${(a.ms / 1000).toFixed(1)} s${a.cached ? " · recorded" : ""}`;
+// "Run now": call the model again for one call, ignoring the recording.
+const runNow = (kind, v, id, label) => {
+  const busy = R.busy.has(`${kind === "act" ? "a" : "g"}:${v}:${id}`), off = R.status !== "live" || R.mode === "replay";
+  const why = off ? (R.mode === "replay" && R.status === "live" ? "Replay mode never calls a model" : "Not connected to the server") : "Call the model again and ignore the recording";
+  return `<button class="tab runnow" data-act="rerun:${kind}:${v}:${id}" ${busy || off ? "disabled" : ""} title="${why}">${busy ? spinner + "Running…" : label}</button>`;
+};
+async function rerun(kind, v, id) {
+  if (R.status !== "live" || R.mode === "replay") return;
+  const log = LOGS.find((l) => l.id === id), ka = `a:${v}:${id}`, kg = `g:${v}:${id}`, key = kind === "act" ? ka : kg;
+  if (R.busy.has(key)) return;
+  busyAdd(key); delete R.err[key]; redraw();
+  try {
+    if (kind === "act") { R.act[v][id] = await api("/api/act", { prompt: livePrompt(v).replace("{{log}}", log.text), fresh: true }); delete R.grade[v][id]; delete R.err[kg]; }
+    else R.grade[v][id] = await api("/api/grade", { log: log.text, expected: log.exp, reply: R.act[v][id].text, fresh: true });
+  } catch (e) { R.err[key] = String(e.message || e); }
+  R.busy.delete(key); redraw();
+}
+// All four sample runs at once, one cell each: the exact prompt, the model's reply, when it ran, and Run now.
+// Prompt and reply sit in fixed-size, read-only, scrollable boxes. The prompt box starts scrolled to its end, where the log line differs.
+function runGrid(v) {
+  const cells = SAMPLE.map((id, n) => {
+    const l = LOGS.find((x) => x.id === id), a = R.act[v][id], e = R.err[`a:${v}:${id}`], running = R.busy.has(`a:${v}:${id}`);
+    const waiting = running || (!a && !e);
+    let seen = "";
+    if (a && !running) { const j = scoreReply(a.text, l.exp); seen = j.json ? "A script can parse this reply." : a.text.trim().startsWith("```") ? "A script cannot parse it: wrapped in a code fence." : "A script cannot parse it: not JSON."; }
+    const out = waiting ? `<div class="boxfix">${loader(`${nice(R.actor) || "The model"} is answering…`, `a:${v}:${id}`, 56)}</div>`
+      : `<pre tabindex="0" aria-label="Model output, log ${id}">${a ? esc(a.text.trim()) : `The call failed: ${esc(e)}`}</pre>`;
+    return `<div class="cell">
+      <div class="cellhead"><b>Run ${n + 1}</b> · log ${id} · ${esc(l.pipe)}</div>
+      <div class="cellbody">
+        <div><h3>Input prompt</h3><pre class="p" tabindex="0" aria-label="Input prompt, log ${id}">${esc(livePrompt(v).replace("{{log}}", l.text))}</pre></div>
+        <div><h3>Model output · ${esc(nice(a ? a.model : R.actor))}</h3>${out}</div>
+      </div>
+      <div class="runrow">${a && !running ? `<span class="meta">${esc(metaLine(a))}<br>${esc(seen)}</span>` : "<span></span>"}${runNow("act", v, id, "Run now")}</div>
+    </div>`;
+  }).join("");
+  return `<div class="grid4">${cells}</div>`;
+}
+const offlineNote = () => R.status === "offline" ? `<div class="note warnnote">These steps call a model for real, and the page is not connected to the server. In a terminal run <code>node server.mjs</code>, then open <code>http://127.0.0.1:8787</code>.</div>` : "";
+const retryRow = () => { const errs = Object.values(R.err); return errs.length ? `<div class="row"><span class="bad">${errs.length} call${errs.length > 1 ? "s" : ""} failed: ${esc(errs[0])}</span><button data-act="retry">Retry</button></div>` : ""; };
+function scoreNote(v) {
+  const js = ALL.filter((l) => l.split !== "test").map((l) => liveJudge(v, l));
+  if (js.some((j) => !j || j.right === null)) return `Scoring ${v} for real: ${esc(nice(R.actor))} answers each log, then ${esc(nice(R.grader))} judges whether each reply has the right idea.`;
+  const n = js.length, right = js.filter((j) => j.right).length, parsed = js.filter((j) => j.json).length, pass = js.filter((j) => j.json && j.allowed && j.correct).length;
+  if (v === "v1") return `Score version 1. The judge, ${esc(nice(R.grader))}, says <b>${right} of ${n}</b> replies name the right failure. The script can parse <b>${parsed} of ${n}</b>, so ${pass} pass all three gates. Gates first: the reply must be JSON, the label must be one we allow, and it must be correct. Any failed gate keeps the score under 0.5.`;
+  return `Score version 2. <b>${parsed} of ${n}</b> replies parse and <b>${pass} of ${n}</b> pass all three gates. The judge says ${right} of ${n} have the right idea. Only a reply that passes every gate is scored on quality (here, a reason of 15 words or fewer).`;
+}
+function detailRow(v, l, j, cols) {
+  const a = R.act[v][l.id], g = R.grade[v][l.id], runA = R.busy.has(`a:${v}:${l.id}`), runG = R.busy.has(`g:${v}:${l.id}`);
+  const passed = [j.json, j.allowed, j.correct].filter(Boolean).length;
+  const how = passed === 3
+    ? `All three gates pass, so ${f3(j.score)} = 0.5 + 0.5 × quality (${j.words} words, ${j.words <= 15 ? "within" : "over"} the limit of 15).`
+    : `${passed} of 3 gates pass, so ${f3(j.score)} = ${passed}/3 × 0.5. Any failed gate keeps the score under 0.5.`;
+  const gates = [["json", j.json], ["label ok", j.allowed], ["correct", j.correct]].map(([n, b]) => `<span class="${b ? "ok" : "bad"}">${n}: ${b ? "pass" : "fail"}</span>`).join(" · ");
+  const verdict = runG || !g ? `${spinner}judging…` : `<span class="${g.rightIdea ? "ok" : "bad"}">${g.rightIdea ? "right idea" : "wrong idea"}</span>`;
+  return `<tr class="detail"><td colspan="${cols}"><div class="dgrid reveal">
+    <div class="dbox"><h3>Input prompt</h3><pre>${esc(livePrompt(v).replace("{{log}}", l.text))}</pre></div>
+    <div class="dbox"><h3>Model output · ${esc(nice(a.model))}</h3>${runA ? `<div class="boxfix">${loader(`${nice(R.actor)} is answering…`, `a:${v}:${l.id}`)}</div>` : `<pre>${esc(a.text.trim())}</pre>`}
+      <div class="runrow">${runA ? "<span></span>" : `<span class="meta">${esc(metaLine(a))}</span>`}${runNow("act", v, l.id, "Run now")}</div></div>
+    <div class="dbox"><h3>Score and judge</h3>
+      <p>${gates}</p><p>${esc(how)}</p>
+      <p><b>Judge, ${esc(nice(g ? g.model : R.grader))}:</b> ${verdict}</p>
+      <p class="why">${runG || !g ? "" : esc(g.why)}</p><p class="faint">Expected: ${esc(l.exp)}</p>
+      <div class="runrow">${g && !runG ? `<span class="meta">${esc(metaLine(g))}</span>` : "<span></span>"}${runNow("grade", v, l.id, "Run judge now")}</div></div>
+  </div></td></tr>`;
+}
+function titleActions() {
+  const replay = R.mode === "replay";
+  const warm = `<button data-act="warm">${R.busy.size ? `${spinner}Warming up… ${R.busy.size} calls left` : "Warm up the live calls"}</button>`;
+  const empty = R.confirmReset
+    ? `<button class="primary" data-act="reset">Clear ${R.recorded} recorded call${R.recorded === 1 ? "" : "s"} and start empty</button><button data-act="resetno">Cancel</button>`
+    : `<button data-act="resetask" ${replay ? "disabled" : ""} title="${replay ? "Replay mode never changes the recording" : "Forget every recorded call, so every call from here is live"}">Start from empty</button>`;
+  const line = R.note || (replay ? `${R.recorded} recorded calls · replay mode`
+    : R.recorded ? `${R.recorded} recorded call${R.recorded === 1 ? "" : "s"} on this machine · warm-up reuses them · start from empty clears them and keeps a backup`
+    : "No recorded calls: every call will be live");
+  return `<div class="row" style="margin-top:16px">${warm}${empty}</div><p class="mono">${esc(line)}</p>`;
+}
+// Start from empty: the server forgets its recordings (keeping a backup) and the page forgets its results and its place.
+async function startEmpty() {
+  try {
+    const r = await api("/api/reset", {});
+    R.act = { v1: {}, v2: {} }; R.grade = { v1: {}, v2: {} }; R.err = {}; R.recorded = 0;
+    S.st = {}; S.open = new Set();
+    R.note = `Cleared ${r.cleared} recorded call${r.cleared === 1 ? "" : "s"}${r.backup ? `. Backup: .cache/${r.backup}` : ""}. Every call from here is live.`;
+  } catch (e) { R.note = "Could not clear: " + String(e.message || e); }
+  R.confirmReset = false;
+  go(0, "start");
+}
+function refreshHealth() {
+  fetch("/api/health").then((r) => (r.ok ? r.json() : null)).then((j) => { if (j && j.recorded !== R.recorded) { R.recorded = j.recorded; redraw(); } }).catch(() => {});
+}
+const sampleDone = (v) => SAMPLE.every((id) => R.act[v][id]);
+
 /* ---------- state: one step counter per screen ---------- */
-const S = { i: 0, st: {}, notes: false, last: null };
+const S = { i: 0, st: {}, notes: false, last: null, open: new Set(), focusRow: null };
 let timer = null;
 const stepOf = (id) => S.st[id] || 0;
 const setStep = (id, n) => { S.st[id] = n; };
@@ -736,33 +930,34 @@ const setStep = (id, n) => { S.st[id] = n; };
 const SCREENS = [
   {
     id: "title", title: "Title", tag: null, steps: 0, hints: [["neutral", ""]],
+    effect: () => { if (R.status === "live") refreshHealth(); },
     notes: "Say who you are in one sentence. Then: the next twenty minutes follow one prompt from a one-liner to something measurable. Everything advances with Next.",
     render: () => `
-      <div class="hero-mascot reveal">${EklavyaMascot.svg({ expression: "neutral", size: 200, label: "Eklavya, the archer companion" })}</div>
       <div class="head">
         <div class="eyebrow">A walkthrough</div>
         <h1>Data engineering for <em>prompt optimization</em></h1>
         <p class="lede">How to set up the pipeline around a prompt optimizer, and what to check before you believe what it tells you.</p>
         <p class="mono" style="margin-top:32px">Next steps forward one thing at a time · Previous steps back · N for notes</p>
+        ${R.status === "live" ? titleActions() : ""}
       </div>`,
   },
   {
-    id: "v1", title: "Version 1: the one-liner", tag: "example", steps: 1,
+    id: "v1", title: "Version 1: the one-liner", tag: "live", live: true, steps: 1,
     hints: [["curious", "Start simple. Everyone does."], ["thinking", "It reads well. How would you know it is right?"]],
-    notes: "Say now that the runs on the next screens are an illustrative example, to save time. Step 1: run it. It reads fine. Ask: will it behave the same tomorrow?",
+    notes: "Step 1 calls the model for real: Haiku 4.5 answers four logs. Say what is happening while it works. The replies are long and chatty, which is what a one-liner gets you.",
+    effect: (st) => { if (st >= 1) ensure("v1", SAMPLE); },
     render: (st) => `
-      ${head("Version 1", "Start with what <em>everybody</em> writes", "An agent that reads a failed pipeline log and says what went wrong.", true)}
-      <pre class="prompt">${segsHtml(P1)}</pre>
-      ${st < 1 ? `<div class="row"><button class="primary" data-act="goto:1">Run on 4 sample logs</button></div>` : `
-        <div class="cluster wide reveal">${SAMPLE.map((id) => logCard(LOGS.find((l) => l.id === id), "v1")).join("")}</div>
-        <div class="note reveal">It reads fine. But will it answer the same way tomorrow? On other logs? Could a script act on it?</div>`}`,
+      ${head("Version 1", "Start with what <em>everybody</em> writes", st < 1 ? "An agent that reads a failed pipeline log and says what went wrong." : "", true)}
+      ${st < 1 ? `<pre class="prompt">${segsHtml(P1)}</pre><div class="row"><button class="primary" data-act="goto:1" ${R.status === "live" ? "" : "disabled"}>Run on 4 sample logs</button></div>${offlineNote()}`
+        : `${sampleDone("v1") ? `<div class="note top reveal">It reads fine. But will it answer the same way tomorrow? On other logs? Could a script act on it?</div>` : ""}${runGrid("v1")}${retryRow()}`}`,
   },
   {
-    id: "v2", title: "Version 2: improve it, one technique at a time", tag: "example", steps: 6,
+    id: "v2", title: "Version 2: improve it, one technique at a time", tag: "live", live: true, steps: 6,
     hints: [["focused", "Watch the prompt grow as each technique lands."], ["happy", "Allowed answers: the model can stop guessing."],
       ["curious", "One worked case beats a paragraph of rules."], ["focused", "Say what to do when nothing fits."],
-      ["happy", "Now a script can read the reply."], ["excited", "Tags: every section now has a name."], ["thinking", "Better. But I only tried four logs I picked."]],
-    notes: "Click the highlighted card, or press Next. Each technique turns green and its text lands in the prompt. The last one, tags, is the point: with several inputs and sections in one prompt, tags keep them apart. Then run it. Still four logs you picked yourself.",
+      ["happy", "Now a script can read the reply."], ["excited", "Tags: every section now has a name."], ["thinking", "Four logs I picked. What would the rest do?"]],
+    notes: "Click the highlighted card, or press Next. Each technique turns green and its text lands in the prompt. The last one, tags, is the point: with several inputs and sections in one prompt, tags keep them apart. Then run it for real. Still four logs you picked yourself.",
+    effect: (st) => { if (st >= 6) ensure("v2", SAMPLE); },
     render: (st) => {
       const k = Math.min(st, 5);
       const shelf = TECH.map((t, idx) => {
@@ -771,47 +966,57 @@ const SCREENS = [
         return `<button class="tcard ${cls}" ${cls === "active" ? 'data-act="next"' : "disabled"} aria-label="${esc(t.label)}: ${state}">
           <div class="state">${idx + 1} · ${state}</div><b>${esc(t.label)}</b><span>${esc(t.why)}</span></button>`;
       }).join("");
+      const parsed = SAMPLE.filter((id) => R.act.v2[id] && liveJudge("v2", LOGS.find((l) => l.id === id)).json).length;
+      const fenced = SAMPLE.filter((id) => R.act.v2[id] && R.act.v2[id].text.trim().startsWith("```")).length;
       return `
       ${head("Version 2", k === 0 ? "Start from version 1, then <em>improve</em> it" : esc(TECH[k - 1].label) + ": <em>added</em>", "", true)}
-      ${st >= 6 ? `<div class="split"><pre class="prompt small">${segsHtml(v2Segs(5, [], -1, false))}</pre>
-          <div class="stack reveal">${SAMPLE.map((id) => logCard(LOGS.find((l) => l.id === id), "v2")).join("")}</div></div>
-        <div class="note warnnote reveal">Better, and a script can parse it. But these are four logs I chose. How would it do on the rest? I still can't tell.</div>`
+      ${st >= 6 ? `${sampleDone("v2") ? `<div class="note warnnote top reveal">${parsed} of 4 replies parse as JSON${fenced ? `, and ${fenced} are wrapped in a code fence, which a strict parser rejects` : ""}. But these are four logs I chose. How would it do on the rest? I still can't tell.</div>` : ""}${runGrid("v2")}${retryRow()}`
       : `<pre class="prompt">${segsHtml(v2Segs(k))}</pre>
-        ${st === 5 ? `<div class="row"><button class="primary" data-act="goto:6">Run on the same 4 logs</button></div>` : `<div class="cluster shelf">${shelf}</div>`}`}`;
+        ${st === 5 ? `<div class="row"><button class="primary" data-act="goto:6" ${R.status === "live" ? "" : "disabled"}>Run on the same 4 logs</button></div>${offlineNote()}` : `<div class="cluster shelf">${shelf}</div>`}`}`;
     },
   },
   {
-    id: "score", title: "We need a score", tag: "example", steps: 4,
+    id: "score", title: "We need a score", tag: "live", live: true, steps: 4,
     hints: [["curious", "Twelve logs. Hold on to that number."], ["focused", "No answer key, no score."], ["wink", "Split by pipeline, not by row."],
-      ["surprised", "Zero. It read fine, but no script can parse it."], ["thinking", "Better. Train and validation already differ."]],
-    notes: "This is the real subject of the talk. Step by step: examples, the right answer, the split by pipeline, then score v1 and v2 and watch the numbers disagree with your impression.",
+      ["surprised", "Same replies, now with a score next to them."], ["thinking", "Same logs, new prompt, new numbers."]],
+    notes: "This is the real subject of the talk. Step by step: examples, the right answer, the split by pipeline, then score v1 and v2 with real model replies. The judge column is a second model reading each reply for meaning. The gate columns are code. Where they disagree is the point. Click a row to open it: the exact prompt sent, the full reply, how the score was worked out, and the judge's reasoning.",
+    effect: (st) => { const ids = ALL.map((l) => l.id); if (st >= 3) ensure("v1", ids, true); if (st >= 4) ensure("v2", ids, true); },
     render: (st) => {
       const v = st === 3 ? "v1" : st >= 4 ? "v2" : null;
       const showExp = st >= 1, showSplit = st >= 2;
-      const ids = LOGS.filter((l) => !l.added);
       const mark = (b) => (b ? '<span class="ok">pass</span>' : '<span class="bad">fail</span>');
-      const th = `<th>#</th><th>Pipeline</th>${showSplit ? "<th>Split</th>" : ""}<th>Log</th>${showExp ? "<th>Expected</th>" : ""}${v ? '<th class="num">json</th><th class="num">label ok</th><th class="num">correct</th><th class="num">score</th>' : ""}`;
-      const rows = ids.map((l) => {
-        const j = v ? judge(v, l) : null;
-        return `<tr><td class="num">${l.id}</td><td>${esc(l.pipe)}</td>${showSplit ? `<td>${splitPill(l.split)}</td>` : ""}<td class="log" title="${esc(l.text)}">${esc(l.text)}</td>${showExp ? `<td class="num">${esc(l.exp)}</td>` : ""}${j ? `<td class="num">${mark(j.json)}</td><td class="num">${mark(j.allowed)}</td><td class="num">${mark(j.correct)}</td><td class="num">${f3(j.score)}</td>` : ""}</tr>`;
+      const th = `<th>#</th><th>Pipeline</th>${showSplit ? "<th>Split</th>" : ""}<th>Log</th>${showExp ? "<th>Expected</th>" : ""}${v ? '<th class="num">json</th><th class="num">label ok</th><th class="num">correct</th><th class="num">judge</th><th class="num">score</th>' : ""}`;
+      const cols = 3 + (showSplit ? 1 : 0) + (showExp ? 1 : 0) + (v ? 5 : 0);
+      const rows = ALL.map((l) => {
+        let tail = "", j = null;
+        if (v) {
+          j = liveJudge(v, l);
+          if (l.split === "test") tail = `<td colspan="5" class="faint">hidden until the test split is opened</td>`;
+          else if (!j) tail = `<td colspan="5" class="faint">${R.err[`a:${v}:${l.id}`] ? "the call failed" : spinner + " waiting for the model…"}</td>`;
+          else tail = `<td class="num">${mark(j.json)}</td><td class="num">${mark(j.allowed)}</td><td class="num">${mark(j.correct)}</td><td class="num">${j.right === null ? "…" : `<span class="${j.right ? "ok" : "bad"}" title="${esc(j.why)}">${j.right ? "right idea" : "wrong idea"}</span>`}</td><td class="num">${f3(j.score)}</td>`;
+        }
+        const key = `${v}:${l.id}`, canOpen = !!(v && j && l.split !== "test"), open = canOpen && S.open.has(key);
+        const first = canOpen ? `<button class="rowbtn" aria-expanded="${open}" aria-label="${open ? "Hide" : "Show"} the prompt, reply and judge for log ${l.id}"><svg class="chev" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>${l.id}</button>` : l.id;
+        return `<tr${canOpen ? ` class="clickable" data-act="row:${key}" data-row="${key}"` : ""}><td class="num">${first}</td><td>${esc(l.pipe)}</td>${showSplit ? `<td>${splitPill(l.split)}</td>` : ""}<td class="log" title="${esc(l.text)}">${esc(l.text)}</td>${showExp ? `<td class="num">${esc(l.exp)}</td>` : ""}${tail}</tr>${open ? detailRow(v, l, j, cols) : ""}`;
       }).join("");
+      const lm = (split) => { const m = v ? liveMean(v, split) : null; return m === null ? "…" : f3(m); };
       const means = v ? `<div class="row reveal"><span class="big">${v}</span><span class="arrow">&rarr;</span>
-        <span>train <b>${f3(mean(v, "train"))}</b></span><span>val <b>${f3(mean(v, "val"))}</b></span><span class="faint">test hidden</span></div>` : "";
+        <span>train <b>${lm("train")}</b></span><span>val <b>${lm("val")}</b></span><span class="faint">test hidden</span></div>` : "";
       const captions = [
         "Twelve invented failure logs from four pipelines. This is the raw material.",
         "Each log gets the right answer written down next to it. Without that, there is nothing to score against.",
         "Split by <b>pipeline</b>, not by row, so look-alike logs stay on one side: spark-clicks and dbt-finance train, airflow-orders validates, kafka-events is held back for test.",
-        "Score version 1. Gates first: the reply must be JSON, the label must be one we allow, and it must be correct. Any failed gate keeps the score under 0.5. <b>v1 read fine. It scores zero because nothing downstream can parse it.</b>",
-        "Score version 2. Only a reply that passes all three gates is scored on quality (here, a reason of 15 words or fewer). Better, but the validation and train numbers already differ.",
       ];
+      const note = st < 3 ? captions[st] : scoreNote(v);
       return `
       ${head("The missing piece", "How would you <em>know</em>?", "", true)}
       ${st >= 3 ? `<div class="row"><span class="mono">Score a prompt</span>
         <button class="tab" data-act="goto:3" aria-pressed="${st === 3}">v1</button>
         <button class="tab" data-act="goto:4" aria-pressed="${st >= 4}">v2</button></div>` : ""}
       <div class="scroll"><table class="compact"><thead><tr>${th}</tr></thead><tbody>${rows}</tbody></table></div>
-      ${means}
-      <div class="note reveal">${captions[st]}</div>`;
+      ${v ? `<p class="source mono">Click a row: the prompt, the reply, the score and the judge's reasoning</p>` : ""}
+      ${means}${retryRow()}${st >= 3 ? offlineNote() : ""}
+      <div class="note reveal">${note}</div>`;
     },
   },
   {
@@ -852,7 +1057,7 @@ const SCREENS = [
     id: "gepa-install", title: "Install GEPA", tag: "ref", steps: 4,
     hints: [["focused", "One line to install."], ["wink", "Or take the latest from main."], ["happy", "Pin the version you tested."],
       ["curious", "Using Claude Code? There is a skill."], ["thinking", "Five inputs. This is the setup work."]],
-    notes: "Install is one line. Mention the pin: Eklavya's eval pins gepa==0.1.4. The Claude Code skill is optional. Close on the six inputs: that is the setup work this talk is about.",
+    notes: "Install is one line. Mention the pin: use the version you tested, for example gepa==0.1.4. The Claude Code skill is optional. Close on the five inputs: that is the setup work this talk is about.",
     render: (st) => {
       const lines = [
         `<span class="p">$</span> <span class="k">pip</span> install gepa`,
@@ -869,7 +1074,7 @@ const SCREENS = [
           <p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
       }
       const term = `<pre class="term reveal">${lines.slice(0, Math.min(st + 1, 2)).join("\n\n")}</pre>`;
-      const pin = st >= 2 ? `<div class="block reveal"><h3>requirements.txt, as Eklavya's eval pins it</h3><pre class="term" style="margin:0">gepa==0.1.4</pre></div>` : "";
+      const pin = st >= 2 ? `<div class="block reveal"><h3>Pin the version you tested, for example in requirements.txt</h3><pre class="term" style="margin:0">gepa==0.1.4</pre></div>` : "";
       const skill = st >= 3 ? `<div class="block reveal"><h3>Using Claude Code?</h3><pre class="term" style="margin:0"><span class="p">&gt;</span> /plugin marketplace add gepa-ai/gepa\n<span class="p">&gt;</span> /plugin install gepa-optimize-anything@gepa</pre></div>` : "";
       return `${head("Setting up", "Install it in <em>one line</em>")}${term}${pin}${skill}<p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
     },
@@ -920,8 +1125,7 @@ const SCREENS = [
       return `
       ${head("Setting it up", "It is an <em>ETL</em> pipeline")}
       <div class="cluster">${cards.slice(0, Math.min(st + 1, 3)).join("")}</div>
-      ${st >= 3 ? `<div class="note warnnote reveal"><b>Set limits before the first run.</b> Maximum model calls, maximum minutes, and the size and time your product can live with. If a limit is in neither the score nor the caps, the optimizer cannot know it exists.</div>
-      <p class="source reveal">Real example, from Eklavya's setup notes: <code>--metric-calls 100 --max-model-calls 400 --max-minutes 90</code>. Every example costs one generation plus two judge calls.</p>` : ""}`;
+      ${st >= 3 ? `<div class="note warnnote reveal"><b>Set limits before the first run.</b> Maximum model calls, maximum minutes, and the size and time your product can live with. If a limit is in neither the score nor the caps, the optimizer cannot know it exists.</div>` : ""}`;
     },
   },
   {
@@ -999,29 +1203,6 @@ const SCREENS = [
     },
   },
   {
-    id: "real", title: "A real run, from Eklavya", tag: "real", steps: 2,
-    hints: [["neutral", "Real numbers now, from Eklavya's own result notes."], ["worried", "A limit the score ignored."], ["wink", "This slot is ready for the fixed evals."]],
-    notes: "These two are real, from Eklavya's own result notes (9 and 10 October 2026). Replace or extend after the evals are fixed.",
-    render: (st) => `
-      ${head("Not a mock", "The same lessons, from a <em>real</em> tool")}
-      <div class="cluster wide">
-        <div class="card reveal"><h3>Validation against test</h3>
-          <p>A GEPA candidate for Eklavya's question-writing prompt.</p>
-          <table><thead><tr><th></th><th class="num">Shipped</th><th class="num">Candidate</th></tr></thead><tbody>
-            <tr><td>Validation (chosen on)</td><td class="num">0.48</td><td class="num">0.79</td></tr>
-            <tr><td>Test (untouched)</td><td class="num">0.545</td><td class="num">0.637</td></tr></tbody></table>
-          <p class="faint" style="margin-top:8px">The note's own words: that gap is selection, not generalisation. Recommendation: do not ship the candidate.</p></div>
-        ${st >= 1 ? `<div class="card reveal"><h3>A limit the score ignored</h3>
-          <p>A GEPA candidate for Eklavya's prompt feedback.</p>
-          <table><thead><tr><th></th><th class="num">Shipped</th><th class="num">Candidate</th></tr></thead><tbody>
-            <tr><td>Timeouts</td><td class="num">1 of 15</td><td class="num">6 of 15</td></tr>
-            <tr><td>Pass every gate</td><td class="num">10 of 15</td><td class="num">6 of 15</td></tr>
-            <tr><td>Mean score</td><td class="num">0.718</td><td class="num">0.456</td></tr></tbody></table>
-          <p class="faint" style="margin-top:8px">Latency was reported but not scored, so the search could not see it. Not shipped.</p></div>` : ""}
-      </div>
-      ${st >= 2 ? `<div class="placeholder reveal">Placeholder: swap in a before and after from the fixed evals when they exist (Eklavya issue #235).</div>` : ""}`,
-  },
-  {
     id: "checklist", title: "The checklist", tag: null, steps: 3,
     hints: [["focused", "Gates, examples, and a split by source."], ["focused", "Baseline, a bar, and every limit in the score."], ["happy", "Record it, enforce it in code, look at test once."], ["celebrate", "Questions welcome."]],
     notes: "Three items at a time. Read none of it aloud. Pick the two you most want them to remember. Then questions.",
@@ -1055,11 +1236,11 @@ function go(i, mode) {
   if (mode === "start") setStep(sc.id, 0);
   else if (mode === "end") setStep(sc.id, sc.steps);
   if (location.hash !== "#" + (S.i + 1)) history.replaceState(null, "", "#" + (S.i + 1));
-  draw();
+  draw("screen");
 }
 function next() {
   const sc = SCREENS[S.i], st = stepOf(sc.id);
-  if (st < sc.steps) { setStep(sc.id, st + 1); draw(); }
+  if (st < sc.steps) { setStep(sc.id, st + 1); draw("step"); }
   else if (S.i < SCREENS.length - 1) go(S.i + 1, "start");
 }
 function prev() {
@@ -1067,15 +1248,23 @@ function prev() {
   if (st > 0) { clearInterval(timer); setStep(sc.id, st - 1); draw(); }
   else if (S.i > 0) go(S.i - 1, "end");
 }
-function draw() {
+// Motion contract. draw(motion): "step" = Next within a screen, only the new elements rise (a prompt's new text, a new card or row);
+// "screen" = the whole slide rises once; omitted = redraw with no entrance (Previous, live results, row toggles, Run now).
+// Same entrance everywhere: translateY(10px) and fade, 320ms, the token easing. Reduced motion: none.
+const MOTION = { ms: 320, ease: "cubic-bezier(.2,.6,.2,1)" }; // mirror --duration-slow and --ease
+function draw(motion) {
   const sc = SCREENS[S.i], st = stepOf(sc.id);
   const slide = $("slide");
   const before = S.last === sc.id ? slide.getBoundingClientRect() : null;
+  const NEW = ".reveal, pre.prompt .add";
+  const seen = new Set(motion === "step" ? [...slide.querySelectorAll(NEW)].map((e) => e.outerHTML) : []);
   slide.innerHTML = sc.render(st);
+  slide.querySelectorAll(NEW).forEach((e) => { if (motion !== "step" || seen.has(e.outerHTML)) e.classList.add("still"); });
+  if (motion === "screen" && !reduced() && slide.animate) slide.animate([{ opacity: 0, transform: "translateY(10px)" }, { opacity: 1, transform: "none" }], { duration: MOTION.ms, easing: MOTION.ease });
   // The slide is vertically centred, so adding content moves it. Glide it instead of jumping.
   if (before && !reduced() && slide.animate) {
     const dy = before.top - slide.getBoundingClientRect().top;
-    if (Math.abs(dy) > 2) slide.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], { duration: 280, easing: "cubic-bezier(.2,.6,.2,1)" });
+    if (Math.abs(dy) > 2) slide.animate([{ transform: `translateY(${dy}px)` }, { transform: "translateY(0)" }], { duration: MOTION.ms, easing: MOTION.ease });
   }
   if (S.last !== sc.id) $("main").scrollTop = 0;
   S.last = sc.id;
@@ -1083,7 +1272,7 @@ function draw() {
   $("crumb").textContent = sc.title;
   $("jump").value = String(S.i);
   const tag = $("tag");
-  const tagText = { example: "Example data", real: "Real data", ref: "From the GEPA repo" }[sc.tag] || "";
+  const tagText = { example: "Example data", live: "Live run", ref: "From the GEPA repo" }[sc.tag] || "";
   tag.hidden = !tagText;
   tag.className = "tag " + (sc.tag || "");
   tag.textContent = tagText;
@@ -1091,11 +1280,24 @@ function draw() {
   $("prev").disabled = S.i === 0 && st === 0;
   $("next").disabled = S.i === SCREENS.length - 1 && st >= sc.steps;
   document.querySelectorAll(".dot").forEach((d, k) => d.setAttribute("aria-current", String(k === S.i)));
+  document.querySelectorAll(".cell .p").forEach((el) => { el.scrollTop = el.scrollHeight; });
+  if (S.focusRow) { const b = document.querySelector(`[data-row="${S.focusRow}"] button`); if (b) b.focus(); S.focusRow = null; }
+  if (sc.effect) sc.effect(st);
   // The companion: a small face and one short line per step. Hidden on the title, where the full mascot already is.
-  const hint = sc.hints[Math.min(st, sc.hints.length - 1)];
+  const live = $("live");
+  live.className = "mono live " + (R.status === "live" ? "on" : R.status === "offline" ? "off" : "");
+  live.innerHTML = "<i></i>" + (R.status === "live" ? (R.mode === "replay" ? "Replay · recorded runs" : `Live · ${esc(nice(R.actor))} acts · ${esc(nice(R.grader))} grades`)
+    : R.status === "offline" ? "Not connected · run node server.mjs" : "Checking…");
+  let hint = sc.hints[Math.min(st, sc.hints.length - 1)];
+  if (sc.live && R.busy.size) hint = ["excited", `The model is working. ${R.busy.size} call${R.busy.size > 1 ? "s" : ""} left.`];
   const comp = $("companion");
   comp.hidden = !hint[1];
-  if (hint[1]) comp.innerHTML = `<div class="mascot">${EklavyaMascot.svg({ expression: hint[0], variant: "face", size: 56 })}</div><div class="bubble reveal">${esc(hint[1])}</div>`;
+  const crowded = slide.getBoundingClientRect().bottom > innerHeight - 190;
+  comp.className = "companion" + (crowded ? " crowded" : "");
+  const art = sc.live && R.busy.size ? claudeLoader(64) : EklavyaMascot.svg({ expression: hint[0], variant: "face", size: 56 });
+  const hk = sc.id + "|" + hint[1];
+  if (hint[1]) comp.innerHTML = `<div class="mascot">${art}</div><div class="bubble${motion && hk !== S.hint ? " reveal" : ""}">${esc(hint[1])}</div>`;
+  S.hint = hk;
   const n = $("notes");
   n.hidden = !S.notes;
   n.textContent = sc.notes;
@@ -1106,7 +1308,7 @@ function animateTo(max) {
   timer = setInterval(() => {
     if (SCREENS[S.i].id !== id) { clearInterval(timer); return; }
     const n = stepOf(id) + 1;
-    setStep(id, n); draw();
+    setStep(id, n); draw("step");
     if (n >= max) clearInterval(timer);
   }, 650);
 }
@@ -1114,11 +1316,19 @@ function animateTo(max) {
 document.addEventListener("click", (e) => {
   const el = e.target.closest("[data-act]");
   if (!el || el.disabled) return;
-  const [act, arg] = el.dataset.act.split(":");
+  const parts = el.dataset.act.split(":");
+  const [act, arg] = parts;
   const id = SCREENS[S.i].id;
   if (act === "next") next();
-  else if (act === "goto") { setStep(id, Number(arg)); draw(); }
-  else if (act === "run1") { setStep(id, 1); draw(); animateTo(4); }
+  else if (act === "goto") { setStep(id, Number(arg)); draw("step"); }
+  else if (act === "run1") { setStep(id, 1); draw("step"); animateTo(4); }
+  else if (act === "retry") { R.err = {}; draw(); }
+  else if (act === "rerun") rerun(parts[1], parts[2], Number(parts[3]));
+  else if (act === "row") { const key = parts.slice(1).join(":"); S.open.has(key) ? S.open.delete(key) : S.open.add(key); S.focusRow = key; draw(); }
+  else if (act === "resetask") { R.confirmReset = true; draw(); }
+  else if (act === "resetno") { R.confirmReset = false; draw(); }
+  else if (act === "reset") startEmpty();
+  else if (act === "warm") { R.note = ""; const ids = ALL.map((l) => l.id); ensure("v1", ids, true); ensure("v2", ids, true); }
 });
 $("prev").addEventListener("click", prev);
 $("next").addEventListener("click", next);
@@ -1142,6 +1352,10 @@ document.addEventListener("keydown", (e) => {
 });
 window.addEventListener("hashchange", () => { const n = parseInt(location.hash.slice(1), 10); if (n && n - 1 !== S.i) go(n - 1); });
 go((parseInt(location.hash.slice(1), 10) || 1) - 1);
+setInterval(() => document.querySelectorAll("[data-since]").forEach((e) => { e.textContent = Math.floor((Date.now() - Number(e.dataset.since)) / 1000) + " s"; }), 1000);
+fetch("/api/health").then((r) => (r.ok ? r.json() : Promise.reject(new Error("no server"))))
+  .then((j) => { R.status = "live"; R.actor = j.actor; R.grader = j.grader; R.mode = j.mode; R.recorded = j.recorded; redraw(); })
+  .catch(() => { R.status = "offline"; redraw(); });
 </script>
 </body>
 </html>
