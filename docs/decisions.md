@@ -45,7 +45,7 @@ First written 23 Oct 2026; updated the same day when the first screens moved fro
 | 30 logs, 10 per split | Speaker asked for 10 per split (23 Oct), up from 12 logs in all. Ids: train 1-10 (spark-clicks, dbt-finance), val 11-20 (airflow-orders, fivetran-crm), test 21-30 (kafka-events, beam-telemetry), added 31-32 (flink-sessions). The 30-row table sits in a scrollable box. All 120 live calls (30 logs, 2 versions, act and grade) were recorded 23 Oct. The mocked screens got new mocked outputs for the new logs and their numbers were recomputed. |
 | Toy task | Classify pipeline failure logs (30 invented logs, 10 per split, 6 pipelines, 5 labels; speaker asked for 10 each on 23 Oct, up from 12). Fits a data-engineering audience. |
 | Honest ending | After the test split is revealed and acted on, the v4 test number is marked "peeked": it is no longer a clean test. (Mocked today; phase 2 redoes it live.) |
-| Theory before GEPA | Three screens after the score: what GEPA is, how to install it, what the repository holds. |
+| GEPA before the score | Superseded 23 Oct (speaker's call): GEPA is introduced right after version 2, in **two screens** that replace the old three (what, install, repository). Screen 4 defines it in plain English with stick figures; screen 5 shows the process as a cast of five. Install and repository facts are the last step of screen 4. The score screen now follows as "what you hand over". The characters come from the speaker's own explainer video (`~/.hyperframes-studio/New video`), redrawn as original SVG in the design tokens. |
 | Design | Centred slides, the Eklavya design tokens inlined, the archer mascot as a companion with a short hint per step. **No Eklavya wordmark and no other product names on any slide** (speaker's call, 23 Oct); the one exception is the NonStop io logo in the header. |
 | Real-results screen | **Removed** (23 Oct). It showed another project's results. The live runs become the real data. |
 | Browser checks | Playwright MCP. The browser-use plugin registered but failed to connect ("Connection closed"). |
@@ -54,9 +54,10 @@ First written 23 Oct 2026; updated the same day when the first screens moved fro
 ## Screens, in order
 
 1. Title (no mascot, Warm-up button) · 2. Version 1, the one-liner **(live)** · 3. Version 2, five techniques added one by one,
-then run **(live)** · 4. We need a score: examples, answers, split, score v1 and v2 **(live, with a judge column)** ·
-5. What is GEPA · 6. Install GEPA · 7. The GEPA repository · 8. The pipeline around the optimizer (ETL) ·
-9. Optimizer run 1 *(mock)* · 10. Version 3 and the test split *(mock)* · 11. Fix the data, run again *(mock)* · 12. The checklist
+then run **(live)** · 4. What is GEPA (stick figures: the problem, what it does, why it reads the why, what a candidate is, where to get it) ·
+5. How GEPA works (the cast: Teacher, Student, Grader, Coach, Judge, then the loop) · 6. We need a score: examples, answers, split,
+score v1 and v2 **(live, with a judge column)** · 7. The pipeline around the optimizer (ETL) ·
+8. Optimizer run 1 *(mock)* · 9. Version 3 and the test split *(mock)* · 10. Fix the data, run again *(mock)* · 11. The checklist
 
 ## What the first live runs showed (23 Oct 2026, Haiku 4.5 acting, Haiku 5.5 grading; the original 12-log set, so counts are out of 9)
 
@@ -75,17 +76,19 @@ These are real, but one run each: replies vary, and the cache pins what the spea
 
 ## Verified facts and where they come from
 
-**Mocked scores** (recomputed by `scripts/verify-numbers.js`; versions 2 to 4 and the rejected candidate, screens 9 to 11):
+**Mocked scores** (recomputed by `scripts/verify-numbers.js`; versions 2 to 4 and the rejected candidate, screens 8 to 10):
 v2 train 0.717, val 0.867, test 0.667; v3 train 1.000, val 1.000, test 0.800; v4 val 1.000, test 0.975; rejected candidate B train and
 val 0.750 (recomputed for the 30-log set). **These v2 numbers no longer match the live v2 results above**, which is why phase 2 exists.
 
-**GEPA facts on screens 5 to 7:** from the repository README at https://github.com/gepa-ai/gepa, fetched
+**GEPA facts on screens 4 and 5:** from the repository README at https://github.com/gepa-ai/gepa, fetched
 23 Oct 2026 (a summary of the page, not the raw file). Covered: the one-line definition, the paper (*GEPA: Reflective
 Prompt Evolution Can Outperform Reinforcement Learning*, Agrawal et al., 2025, arXiv 2507.19457), `pip install gepa` and
 the install from `main`, the Claude Code skill commands, the entry points (`gepa.optimize`, `optimize_anything`,
 `dspy.GEPA`), the folder list, the adapter and integration names, and the MIT licence.
 
 ## Not verified
+
+- **The cast on screen 5 is an analogy, not GEPA's terms.** Mapping used: Teacher = your train and validation sets; Student = the task model and its traces; Grader = your metric (a score plus feedback text); Coach = the reflection model; Judge = the pool of candidates (Pareto frontier). The README does not define "candidate" in words (it shows a dictionary with a `system_prompt` key), says nothing on how the final best candidate is chosen (it only shows `result.best_candidate`), and does not say what "improved" is measured on. The video says "best average test score wins" and "three practice cards"; neither is on a slide.
 
 - The exact argument names of `gepa.optimize`: the install screen lists its inputs and shows no code call.
 - Whether the README has changed since 23 Oct 2026, and whether `pip install gepa` was run here (it was not).

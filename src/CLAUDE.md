@@ -30,7 +30,8 @@ loading critter, embedded in a JS template string, so no backtick or `${` in it)
    time of the call (`metaLine`) and a **Run now** button: `rerun(kind, version, id)` calls `/api/act` or `/api/grade`
    with `fresh: true`, which makes the server skip its recording and replace it. Re-running an actor call deletes
    its grade so the score screen's `effect` grades it again. The rules for all of this are in `.claude/rules/`.
-6. **Screens.** `SCREENS` is an array of objects, then navigation.
+6. **Stick figures.** `STICK` and `stick(kind)` draw the five GEPA roles as inline SVG; the cast of `gepa-loop` and the candidate row of `gepa-what` use them.
+7. **Screens.** `SCREENS` is an array of objects, then navigation.
 
 ## A screen
 

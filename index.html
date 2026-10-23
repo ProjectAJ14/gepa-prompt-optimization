@@ -479,6 +479,26 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .scroll { overflow-x: auto; }
   .tablebox { max-height: calc(100vh - 460px); overflow: auto; } .tablebox.scored { max-height: calc(100vh - 590px); } /* 30 rows: a fixed-size scrollable box, not a page scroll */
   .tablebox thead th { position: sticky; top: 0; background: var(--bg); z-index: 1; }
+  /* GEPA screens: stick figures and the cast of the loop */
+  .stick { height: clamp(96px, 15vh, 170px); width: auto; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; fill: none; overflow: visible; }
+  .flow { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; margin: 8px 0; }
+  .pcard { border: 1px solid var(--line-2); background: var(--panel); padding: 10px 16px; font-size: 0.9em; max-width: 17em; text-align: left; }
+  .pcard .k { display: block; font-family: var(--font-mono); font-size: 0.72em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--faint); margin-bottom: 4px; }
+  .pcard.new, .pcard.good { border-color: var(--spot); } .pcard.bad { border-color: var(--error); color: var(--error); }
+  .gbox { display: flex; flex-direction: column; align-items: center; gap: 4px; font-family: var(--font-mono); color: var(--spot); }
+  .stack { display: flex; align-items: stretch; justify-content: center; gap: 12px; flex-wrap: wrap; } .stack .pcard { width: 13em; display: flex; flex-direction: column; justify-content: center; } .stack .arrow { align-self: center; }
+  .bignum { font-family: var(--font-mono); font-size: 2.4em; margin: 0; color: var(--ink); }
+  .chiprow { text-align: center; margin-top: 8px; }
+  .cluster.two .card { flex: 1 1 300px; }
+  .cast { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
+  .member { flex: 1 1 170px; max-width: 220px; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 14px 12px; border: 1px solid var(--line-2); background: var(--panel); text-align: center; }
+  .member.on { border-color: var(--spot); }
+  .member .stick { height: clamp(84px, 12vh, 140px); }
+  .member h3 { margin: 4px 0 0; }
+  .member .job { color: var(--ink); font-size: 0.88em; margin: 0; }
+  .member .gterm { color: var(--faint); font-family: var(--font-mono); font-size: 0.68em; margin: 4px 0 0; padding-top: 8px; border-top: 1px solid var(--line-2); width: 100%; }
+  .loopback { position: relative; height: 28px; margin: 0 8%; border: 2px solid var(--spot); border-top: 0; text-align: center; }
+  .loopback .chip { position: relative; top: 14px; background: var(--bg); margin: 0; }
   /* Motion contract (.claude/rules/slides.md): one entrance, `rise`. Only what is new animates; `still` marks what was already there. */
   .reveal { animation: rise var(--duration-slow) var(--ease); }
   pre.prompt .add { animation: rise var(--duration-slow) var(--ease); }
@@ -819,6 +839,16 @@ const ADD3 = [
 ];
 const ADD4 = ["A field whose type disagrees with the schema is SCHEMA_DRIFT."];
 
+// Stick figures for the GEPA screens: one head, one body, a hat or prop per role. Colours are role tokens.
+const STICK = {
+  teacher: `<path d="M27 40h26v7H27z" fill="var(--viz-3)"/><rect x="52" y="76" width="24" height="18" fill="var(--viz-2-soft)"/><path d="M56 76v-7h7v7" fill="none"/>`,
+  student: `<path d="M26 22a14 14 0 0 1 28 0z" fill="var(--viz-1)"/><path d="M44 19h18v4H44z" fill="var(--viz-1)"/>`,
+  grader: `<path d="M26 16h28v5H26z" fill="var(--viz-5)"/><rect x="54" y="60" width="20" height="26" fill="var(--panel)"/><path d="M58 68h12M58 74h12M58 80h8" fill="none" stroke-width="2"/>`,
+  coach: `<path d="M26 16h28v5H26z" fill="var(--viz-2)"/><path d="M58 76l14-22" stroke="var(--viz-2)" stroke-width="5" fill="none"/>`,
+  judge: `<path d="M28 14V3l6 6 6-8 6 8 6-6v11z" fill="var(--viz-4)"/>`,
+};
+const stick = (kind) => `<svg class="stick" viewBox="0 0 84 140" role="img" aria-label="${kind}"><circle cx="40" cy="26" r="14" fill="var(--panel)"/><path d="M40 40v46M40 52l-18 18M40 52l20 14M40 86l-14 46M40 86l14 46"/><circle cx="35" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><circle cx="45" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><path d="M34 31q6 5 12 0" stroke-width="2"/>${STICK[kind]}</svg>`;
+
 const SAMPLE = [11, 2, 6, 22];
 const splitPill = (s) => `<span class="pill ${s}">${s}</span>`;
 const head = (eyebrow, title, lede, dense) => `<div class="head${dense ? " dense" : ""}"><div class="eyebrow">${eyebrow}</div><h2>${title}</h2>${lede ? `<p class="lede">${lede}</p>` : ""}</div>`;
@@ -1034,6 +1064,66 @@ const SCREENS = [
     },
   },
   {
+    id: "gepa-what", title: "What is GEPA?", tag: "ref", steps: 4,
+    hints: [["curious", "A prompt is only instructions. Weak ones, wrong answers."], ["happy", "GEPA rewrites the prompt for you."],
+      ["thinking", "It reads the why, not only the score."], ["focused", "One version of the text is one candidate."], ["wink", "One install, and there is a paper."]],
+    notes: "Four ideas, one per step. 1) A weak prompt keeps getting things wrong. 2) GEPA, short for Genetic-Pareto, rewrites the prompt: run it, read what failed, write a better one, keep it only if it improved. 3) The difference from a plain score: it reads the trace and the feedback text. 4) A candidate is one version of the text. Last step: how to get it. Facts: the GEPA README, read 23 Oct 2026. The wrong answer and the feedback line on screen are illustrations, not results.",
+    render: (st) => {
+      const pc = (k, t, cls) => `<div class="pcard ${cls || ""}"><span class="k">${k}</span>${esc(t)}</div>`;
+      const heads = [
+        head("The problem", "A prompt is a set of <em>instructions</em>", "When they are weak, the AI keeps getting things wrong."),
+        head("Meet GEPA", "It <em>rewrites</em> the prompt for you", "GEPA is short for Genetic-Pareto."),
+        head("The idea", "It reads the <em>why</em>, not only the score"),
+        head("One word to learn", "A <em>candidate</em> is one version of the text"),
+        head("Where to get it", "Open source, one <em>install</em>"),
+      ];
+      const bodies = [
+        `<div class="flow reveal">${stick("student")}${pc("the prompt", "Read the log. Name the failure.")}<span class="arrow">&rarr;</span>${pc("its answer", "UPSTREAM_FAILURE", "bad")}${pc("the right answer", "LATE_DATA", "good")}</div>
+         <p class="source mono">Illustration. Log: "Checkpoint lag 47 min behind source"</p>`,
+        `<div class="flow reveal">${pc("prompt, version 1", "Read the log. Name the failure.")}<span class="arrow">&rarr;</span><div class="gbox">${stick("coach")}<b>GEPA</b></div><span class="arrow">&rarr;</span>${pc("prompt, version 2", "Better instructions, written for you.", "new")}</div>
+         <p class="source reveal">It runs the prompt, reads what went wrong, writes a better one, and keeps it only if it improved.</p>
+         <div class="chiprow reveal">${["prompts", "code", "configurations", "agent architectures"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
+         <p class="source mono">It can optimize any text, as long as you give it a way to score the result</p>`,
+        `<div class="cluster wide two reveal">
+           <div class="card"><h3>A score alone</h3><p class="bignum">0.6</p><p>Tells you how much. Not why.</p></div>
+           <div class="card"><h3>What GEPA reads</h3><pre class="term" style="margin:0 0 8px">reply     UPSTREAM_FAILURE\nfeedback  the log says lag,\n          so this is LATE_DATA</pre><p>The full trace: error messages, reasoning, evaluator logs.</p></div></div>
+         <p class="source mono">Illustration of one example, not a measured result</p>`,
+        `<div class="stack reveal">${pc("candidate 0", "Your starting prompt, the seed")}<span class="arrow">&rarr;</span>${pc("candidate 1", "One edit later", "new")}<span class="arrow">&rarr;</span>${pc("candidate 2", "Another edit")}</div>
+         <p class="source reveal">GEPA keeps a pool of candidates. A better one joins the pool.</p>
+         <pre class="term reveal" style="max-width:34em;margin:12px auto 0"><span class="c"># in the README, a candidate is a dictionary</span>\nseed_prompt = {"system_prompt": "..."}</pre>`,
+        `<div class="cluster wide reveal"><div class="card"><h3>Install</h3><pre class="term" style="margin:0"><span class="p">$</span> pip install gepa\n<span class="c"># or the latest from main</span>\n<span class="p">$</span> pip install git+https://github.com/gepa-ai/gepa.git</pre></div>
+           <div class="card"><h3>Repository</h3><p>${link("https://github.com/gepa-ai/gepa", "github.com/gepa-ai/gepa")}</p><p>MIT licence. Paper: ${link("https://arxiv.org/abs/2507.19457", "arXiv 2507.19457")}</p></div></div>
+         <div class="chiprow reveal">${["gepa.optimize", "optimize_anything", "dspy.GEPA"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
+         <p class="source mono">Three ways in, from the GEPA repository README</p>`,
+      ];
+      return `${heads[st]}${bodies[st]}<p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
+    },
+  },
+  {
+    id: "gepa-loop", title: "How GEPA works", tag: "ref", steps: 6,
+    hints: [["curious", "The Teacher hands out your examples."], ["focused", "The Student tries the current prompt."], ["thinking", "The Grader says how it did, and why."],
+      ["happy", "The Coach rewrites the prompt."], ["focused", "The Judge keeps it only if it improved."], ["excited", "Then it goes round again."], ["happy", "The best candidate comes out."]],
+    notes: "A team with one job each. Teacher: your examples. Student: runs the prompt and writes down its steps. Grader: your metric, a score plus the reason. Coach: reads the mistakes and the feedback and rewrites the prompt. Judge: keeps the new prompt only if it improved, and keeps a pool of candidates that are good at different things. Then repeat until the call budget runs out. Say clearly: these are characters for teaching, not GEPA's own terms. The third line on each card says what the character is in GEPA. Source: the GEPA README.",
+    render: (st) => {
+      const cast = [
+        ["teacher", "Teacher", "Hands out examples", "your train and validation sets"],
+        ["student", "Student", "Tries the current prompt, writes down its steps", "the task model, and its traces"],
+        ["grader", "Grader", "Gives a score and says why", "your metric: a score plus feedback text"],
+        ["coach", "Coach", "Reads the mistakes, rewrites the prompt", "the reflection model"],
+        ["judge", "Judge", "Keeps the new prompt only if it improved", "the pool of candidates, the Pareto frontier"],
+      ];
+      const shown = cast.slice(0, Math.min(st + 1, 5));
+      const member = (m, k) => `<div class="member reveal${k === Math.min(st, 4) && st <= 4 ? " on" : ""}">${stick(m[0])}<h3>${m[1]}</h3><p class="job">${m[2]}</p><p class="gterm">in GEPA: ${m[3]}</p></div>`;
+      const lede = ["", "", "", "", "", "Round after round, the pool grows with candidates that each do well on different examples.", ""][st];
+      const loopback = st >= 5 ? `<div class="loopback reveal"><span class="chip">repeat until the budget (max_metric_calls) runs out</span></div>` : "";
+      const final = st >= 6 ? `<div class="note reveal"><b>Optional:</b> GEPA can also merge two strong candidates, combining what each does well. When the budget runs out, you read <code>result.best_candidate</code>.</div>` : "";
+      const why = st === 4 ? `<div class="note reveal"><b>Why keep a pool?</b> The pool holds candidates that excel on different subsets of the tasks, and the next prompt to improve is picked from it. One top prompt would throw those away.</div>` : "";
+      return `${head("The loop", st >= 5 ? "Then it goes <em>round again</em>" : "A small team, <em>one job each</em>", lede, true)}
+        <div class="cast">${shown.map(member).join("")}</div>${loopback}${why}${final}
+        <p class="source mono">The characters are a teaching analogy. The line "in GEPA" says what each one is. Source: GEPA README, read 23 Oct 2026</p>`;
+    },
+  },
+  {
     id: "score", title: "We need a score", tag: "live", live: true, steps: 4,
     hints: [["curious", "Twelve logs. Hold on to that number."], ["focused", "No answer key, no score."], ["wink", "Split by pipeline, not by row."],
       ["surprised", "Same replies, now with a score next to them."], ["thinking", "Same logs, new prompt, new numbers."]],
@@ -1075,89 +1165,6 @@ const SCREENS = [
       ${v ? `<p class="source mono">Click a row: the prompt, the reply, the score and the judge's reasoning</p>` : ""}
       ${means}${retryRow()}${st >= 3 ? offlineNote() : ""}
       <div class="note reveal">${note}</div>`;
-    },
-  },
-  {
-    id: "gepa-what", title: "What is GEPA?", tag: "ref", steps: 4,
-    hints: [["curious", "Meet GEPA. It edits text, and it explains why."], ["thinking", "A score says how much. A trace says why."],
-      ["focused", "Pick, run, reflect. Three moves."], ["excited", "Mutate, then keep only what helps."], ["wink", "There is a paper. Worth reading."]],
-    notes: "Definition first. Then the one idea that matters: GEPA reads the trace, not just the score. Then the loop in two steps. Then the paper. Source: the GEPA repository README.",
-    render: (st) => {
-      const loop1 = [
-        ["1", "Pick a candidate", "From the Pareto frontier: candidates that excel on different examples stay in the pool."],
-        ["2", "Run it on a minibatch", "A small slice of your examples, not the whole set."],
-        ["3", "Reflect on the traces", "A model reads error messages and reasoning logs and diagnoses what failed."],
-      ];
-      const loop2 = [
-        ["4", "Mutate the candidate", "Write an improved version of the text, using the diagnosis."],
-        ["5", "Keep it if it helps", "A better candidate joins the pool; a worse one is dropped."],
-      ];
-      const stepCard = (c) => `<div class="card reveal"><h3>${c[0]} · ${esc(c[1])}</h3><p>${esc(c[2])}</p></div>`;
-      let body = "";
-      if (st <= 1) {
-        body = `<div class="cluster wide">
-          <div class="card reveal"><h3>What it is</h3><p>A framework for optimizing any system with textual parameters, such as prompts, code, agent architectures or configurations, against an evaluation metric you provide.</p></div>
-          ${st >= 1 ? `<div class="card reveal"><h3>The idea</h3><p>Most optimizers see one number per run. GEPA has a model read the full trace instead: error messages, reasoning, evaluator logs. It writes down what went wrong, in words, and edits from there.</p></div>` : ""}</div>`;
-      } else if (st <= 3) {
-        body = `<div class="cluster">${loop1.map(stepCard).join("")}${st >= 3 ? loop2.map(stepCard).join("") : ""}</div>
-          ${st >= 3 ? `<p class="source reveal">It can also merge two candidates that are strong on different tasks.</p>` : ""}`;
-      } else {
-        body = `<div class="cluster wide"><div class="card reveal"><h3>The paper</h3>
-          <p><b>GEPA: Reflective Prompt Evolution Can Outperform Reinforcement Learning</b></p>
-          <p>Agrawal et al., 2025 · ${link("https://arxiv.org/abs/2507.19457", "arxiv.org/abs/2507.19457")}</p>
-          <p>The claim in the title is theirs. Our own runs, later in this talk, are small and say less.</p></div></div>`;
-      }
-      const titles = ["An optimizer for anything made of <em>text</em>", "It reads the <em>trace</em>, not just the score", "The loop, part <em>one</em>", "The loop, part <em>two</em>", "Where it <em>comes from</em>"];
-      return `${head("Meet GEPA", titles[st])}${body}<p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
-    },
-  },
-  {
-    id: "gepa-install", title: "Install GEPA", tag: "ref", steps: 4,
-    hints: [["focused", "One line to install."], ["wink", "Or take the latest from main."], ["happy", "Pin the version you tested."],
-      ["curious", "Using Claude Code? There is a skill."], ["thinking", "Five inputs. This is the setup work."]],
-    notes: "Install is one line. Mention the pin: use the version you tested, for example gepa==0.1.4. The Claude Code skill is optional. Close on the five inputs: that is the setup work this talk is about.",
-    render: (st) => {
-      const lines = [
-        `<span class="p">$</span> <span class="k">pip</span> install gepa`,
-        `<span class="c"># or the latest from main</span>\n<span class="p">$</span> <span class="k">pip</span> install git+https://github.com/gepa-ai/gepa.git`,
-      ];
-      if (st >= 4) {
-        return `${head("What you hand over", "Five inputs, and <em>that is the setup</em>")}
-          <div class="block reveal"><h3>What <code>gepa.optimize</code> takes</h3><table><tbody>
-          <tr><td>A seed candidate</td><td class="faint">The starting text. For us, the version 2 prompt.</td></tr>
-          <tr><td>Train and validation sets</td><td class="faint">Examples with expected answers, split as you saw.</td></tr>
-          <tr><td>A task model</td><td class="faint">The model that runs the prompt.</td></tr>
-          <tr><td>A metric-call budget</td><td class="faint">The cap that keeps a search affordable.</td></tr>
-          <tr><td>A reflection model</td><td class="faint">The model that reads failures and proposes edits.</td></tr></tbody></table></div>
-          <p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
-      }
-      const term = `<pre class="term reveal">${lines.slice(0, Math.min(st + 1, 2)).join("\n\n")}</pre>`;
-      const pin = st >= 2 ? `<div class="block reveal"><h3>Pin the version you tested, for example in requirements.txt</h3><pre class="term" style="margin:0">gepa==0.1.4</pre></div>` : "";
-      const skill = st >= 3 ? `<div class="block reveal"><h3>Using Claude Code?</h3><pre class="term" style="margin:0"><span class="p">&gt;</span> /plugin marketplace add gepa-ai/gepa\n<span class="p">&gt;</span> /plugin install gepa-optimize-anything@gepa</pre></div>` : "";
-      return `${head("Setting up", "Install it in <em>one line</em>")}${term}${pin}${skill}<p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
-    },
-  },
-  {
-    id: "gepa-repo", title: "The GEPA repository", tag: "ref", steps: 3,
-    hints: [["curious", "Open source, MIT licence."], ["neutral", "A small core, with adapters around it."], ["surprised", "Three ways in. Pick the one that fits."], ["happy", "Plenty of integrations already exist."]],
-    notes: "Where it lives, what is inside, three entry points, then the adapters and integrations. You do not need to read the source to start; the README is enough.",
-    render: (st) => {
-      const tree = `<span class="k">gepa-ai/gepa</span>\n├─ src/gepa/                  <span class="c"># the core library</span>\n│  └─ adapters/               <span class="c"># built-in adapters</span>\n├─ examples/\n├─ tests/\n├─ docs/\n├─ .claude/skills/gepa-optimize-anything/   <span class="c"># agent skill</span>\n└─ .claude-plugin/            <span class="c"># plugin marketplace config</span>`;
-      const entries = [
-        ["gepa.optimize", "Takes a seed candidate, train and validation sets, a task model, a metric-call budget and a reflection model."],
-        ["optimize_anything", "Optimizes any text artifact: code, configs, SVGs, architectures. You supply an evaluator that logs diagnostic feedback."],
-        ["dspy.GEPA", "The recommended route for DSPy programs, used with optimizer.compile."],
-      ];
-      const chips = (a) => a.map((x) => `<span class="chip">${esc(x)}</span>`).join("");
-      const titles = ["Open source, on <em>GitHub</em>", "What is <em>inside</em>", "Three ways <em>in</em>", "Adapters and <em>integrations</em>"];
-      const body = [
-        `<div class="cluster wide"><div class="card reveal"><h3>Repository</h3><p>${link("https://github.com/gepa-ai/gepa", "github.com/gepa-ai/gepa")}</p><p>MIT licence.</p></div></div>`,
-        `<pre class="term reveal">${tree}</pre>`,
-        `<div class="cluster reveal">${entries.map((e) => `<div class="card"><h3>${esc(e[0])}</h3><p>${esc(e[1])}</p></div>`).join("")}</div>`,
-        `<div class="cluster wide reveal"><div class="card"><h3>Built-in adapters</h3>${chips(["DefaultAdapter", "ConfidenceAdapter", "DSPy Full Program", "Generic RAG", "MCP", "TerminalBench", "AnyMaths", "LangChain"])}</div>
-          <div class="card"><h3>Integrations</h3>${chips(["DSPy", "MLflow", "Comet ML Opik", "Pydantic AI", "Google ADK"])}</div></div>`,
-      ];
-      return `${head("Where it lives", titles[st])}${body[st]}<p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
     },
   },
   {

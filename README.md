@@ -1,7 +1,7 @@
 # Data Engineering for Prompt Optimization
 
 A walkthrough for a talk on setting up the pipeline around a prompt optimizer (GEPA). Press Next to step
-through it: a prompt improves from a one-liner, gets a score, then meets GEPA. The first screens run real model
+through it: a prompt improves from a one-liner, meets GEPA (two plain-English screens with stick figures), then gets a score. The live screens run real model
 calls: Haiku 4.5 acts, Haiku 5.5 grades, both through `claude -p`.
 
 ```bash
