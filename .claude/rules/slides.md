@@ -69,6 +69,9 @@ One entrance for everything, so Next always feels the same. The contract lives i
   characters whose turn it is, Teacher, Student, Grader, Coach or Judge, bottom right above the footer, stacked, each with its name. The right character on the right step matters:
   `scripts/verify-numbers.js` pins the roles of every step, so change it there too. Every screen from the score slide on has one, so the audience always knows who is acting. It sits in the slide's side gutter
   and is hidden below 760 px.
+- **The loop ring** on the loop slide (`buildRing`, `setRing`, `attachRing`) shows the five characters round GEPA with the ones at work lit and a card travelling the arrows, while the loop runs.
+  It is an illustration, so its frames are round like the speaker's reference drawing. It is built once and moved into the slide after every draw: the slide is rebuilt on every live
+  result, and a rebuilt ring would restart its animation. Each phase (Teacher, Student and Grader, Coach, Judge) stays lit at least half a second, so recorded runs are watchable too.
 - **No product or project names on slides** other than the subject (GEPA and the models). The header carries one logo, top right: NonStop io's, the speaker's employer (`src/nonstop-logo.svg`, the white-text version made for dark grounds, embedded as a data URI through `<img>`). No other brand mark or wordmark.
   Another project's results never appear on a slide. The loading critter (see `live-model-calls.md`) carries no text.
 

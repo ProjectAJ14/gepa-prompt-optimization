@@ -516,6 +516,20 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .bigq em { font-style: normal; color: var(--spot); }
   @media (max-width: 900px) { .tips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
   @media (max-width: 600px) { .tips { grid-template-columns: minmax(0, 1fr); } }
+  /* The ring on the loop slide: five characters round GEPA, the ones at work lit, a card travelling the loop. An illustration, so its frames are round. */
+  .ringslot { display: flex; justify-content: center; margin-top: 6px; }
+  .ring { display: flex; flex-direction: column; align-items: center; width: 100%; }
+  .ringsvg { width: 100%; max-width: 560px; max-height: calc(100vh - 470px); min-height: 200px; overflow: visible; }
+  .ringsvg .frame { fill: var(--panel); stroke: var(--ink); stroke-width: 4; }
+  .ringsvg .halo { fill: none; stroke: var(--viz-2); stroke-width: 0; transition: stroke-width var(--duration-base) var(--ease); }
+  .ringsvg .rnode { opacity: 0.45; transition: opacity var(--duration-base) var(--ease); }
+  .ringsvg .rnode.on { opacity: 1; } .ringsvg .rnode.on .halo { stroke-width: 8; }
+  .ringsvg .rstick { stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; fill: none; overflow: visible; }
+  .ringsvg .ringtitle { font-family: var(--font-disp); font-weight: 800; font-size: 60px; fill: var(--viz-2); }
+  .ringsvg .rname { font-family: var(--font-disp); font-weight: 800; font-size: 22px; fill: var(--ink); }
+  .ringsvg .rdoes { font-size: 16px; fill: var(--viz-2); opacity: 0; transition: opacity var(--duration-base) var(--ease); } .ringsvg .rnode.on .rdoes { opacity: 1; }
+  .ringcap { margin: 4px 0 0; color: var(--dim); text-align: center; min-height: 1.4em; }
+  .tablebox.small.running { max-height: 150px; }
   .chiprow { text-align: center; margin-top: 8px; }
   .cluster.two .card { flex: 1 1 300px; }
   .cast { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; }
@@ -765,7 +779,8 @@ const STICK = {
   coach: `<path d="M26 16h28v5H26z" fill="var(--viz-2)"/><path d="M58 76l14-22" stroke="var(--viz-2)" stroke-width="5" fill="none"/>`,
   judge: `<path d="M28 14V3l6 6 6-8 6 8 6-6v11z" fill="var(--viz-4)"/>`,
 };
-const stick = (kind) => `<svg class="stick" viewBox="0 0 84 140" role="img" aria-label="${kind}"><circle cx="40" cy="26" r="14" fill="var(--panel)"/><path d="M40 40v46M40 52l-18 18M40 52l20 14M40 86l-14 46M40 86l14 46"/><circle cx="35" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><circle cx="45" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><path d="M34 31q6 5 12 0" stroke-width="2"/>${STICK[kind]}</svg>`;
+const stickInner = (kind) => `<circle cx="40" cy="26" r="14" fill="var(--panel)"/><path d="M40 40v46M40 52l-18 18M40 52l20 14M40 86l-14 46M40 86l14 46"/><circle cx="35" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><circle cx="45" cy="25" r="1.6" fill="var(--ink)" stroke="none"/><path d="M34 31q6 5 12 0" stroke-width="2"/>${STICK[kind]}`;
+const stick = (kind) => `<svg class="stick" viewBox="0 0 84 140" role="img" aria-label="${kind}">${stickInner(kind)}</svg>`;
 
 const SAMPLE = [11, 2, 6, 22];
 const splitPill = (s) => `<span class="pill ${s}">${s}</span>`;
@@ -1036,6 +1051,65 @@ async function warmAll() {
 }
 // The loop, repeated: the Coach reads the failing logs from every split (so the test split is spent), every new candidate is run on all 30
 // logs, the Judge accepts a child that passes more logs, and the loop stops when one candidate passes all three gates on all 30 logs or the budget runs out.
+/* ---------- the ring: the five characters round GEPA, the ones at work lit, a card travelling the loop ----------
+   The ring is built once and moved into the slide after every draw, because the slide is rebuilt on every live result and a rebuilt
+   ring would restart its animation. The card's position comes from the clock, so it never jumps. */
+const RING_ORDER = ["teacher", "student", "grader", "coach", "judge"];
+const RING_DOES = { teacher: "hands out the logs", student: "answers", grader: "marks", coach: "rewrites the prompt", judge: "keeps or drops" };
+const RING_ACTIVE = { teacher: ["teacher"], evaluate: ["student", "grader"], coach: ["coach"], judge: ["judge"] };
+const RING = { el: null, token: null, raf: 0 };
+const ringPoint = (deg, r) => { const a = (deg * Math.PI) / 180; return [280 + r * Math.cos(a), 185 + r * Math.sin(a)]; };
+function buildRing() {
+  const Rr = 125, nr = 40, gap = (2 * Math.asin(nr / (2 * Rr)) * 180) / Math.PI + 4;
+  const angles = RING_ORDER.map((_, i) => -90 + 72 * i);
+  let svg = `<svg class="ringsvg" viewBox="0 0 560 360" role="img" aria-label="The loop: Teacher, Student, Grader, Coach and Judge, round and round"><defs><marker id="ringhead" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="6" markerHeight="6" orient="auto"><path d="M0 0L8 4L0 8z" fill="var(--viz-2)"/></marker></defs>`;
+  angles.forEach((a) => { const [x1, y1] = ringPoint(a + gap, Rr), [x2, y2] = ringPoint(a + 72 - gap, Rr); svg += `<path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${Rr} ${Rr} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}" fill="none" stroke="var(--viz-2)" stroke-width="5" stroke-linecap="round" marker-end="url(#ringhead)"/>`; });
+  svg += `<text class="ringtitle" x="280" y="205" text-anchor="middle">GEPA</text>`;
+  RING_ORDER.forEach((role, i) => {
+    const [x, y] = ringPoint(angles[i], Rr), left = role === "coach" || role === "judge", tx = left ? x - nr - 16 : x + nr + 16, anchor = left ? "end" : "start";
+    svg += `<g class="rnode" data-role="${role}"><circle class="halo" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${nr + 7}"/><circle class="frame" cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${nr}"/>`
+      + `<svg class="rstick" x="${(x - 22).toFixed(1)}" y="${(y - 37).toFixed(1)}" width="44" height="73" viewBox="0 0 84 140">${stickInner(role)}</svg>`
+      + `<text class="rname" x="${tx.toFixed(1)}" y="${(y - 2).toFixed(1)}" text-anchor="${anchor}">${ROLE_NAME[role]}</text><text class="rdoes" x="${tx.toFixed(1)}" y="${(y + 20).toFixed(1)}" text-anchor="${anchor}">${RING_DOES[role]}</text></g>`;
+  });
+  svg += `<g class="rtoken"><rect x="-9" y="-12" width="18" height="24" fill="var(--viz-2)" stroke="var(--ink)" stroke-width="3"/></g></svg><p class="ringcap" role="status"></p>`;
+  const el = document.createElement("div");
+  el.className = "ring";
+  el.innerHTML = svg;
+  RING.el = el; RING.token = el.querySelector(".rtoken");
+}
+function setRing(active, caption) {
+  if (!RING.el) buildRing();
+  RING_ORDER.forEach((role) => { const n = RING.el.querySelector(`.rnode[data-role="${role}"]`); if (n) n.classList.toggle("on", active.includes(role)); });
+  const cap = RING.el.querySelector(".ringcap"); if (cap) cap.textContent = caption;
+}
+function attachRing(slot) {
+  if (!slot) return;
+  if (!RING.el) buildRing();
+  if (RING.el.parentNode !== slot) slot.appendChild(RING.el);
+  if (!RING.raf && typeof requestAnimationFrame === "function") RING.raf = requestAnimationFrame(tickRing);
+}
+function tickRing(t) {
+  RING.raf = 0;
+  if (!RING.el || !RING.el.isConnected || !(R.loop && R.loop.running)) return; // stops itself when the ring leaves the page or the loop ends
+  if (RING.token && !reduced()) {
+    const deg = -90 + ((t / 6000) % 1) * 360, [x, y] = ringPoint(deg, 125);
+    RING.token.setAttribute("transform", `translate(${x.toFixed(1)} ${y.toFixed(1)}) rotate(${(deg + 90).toFixed(0)})`);
+  }
+  RING.raf = requestAnimationFrame(tickRing);
+}
+// What the ring and its caption say right now.
+function ringState() {
+  const L = R.loop, cur = L.cur, n = L.n || 1, doneActs = cur ? ALL.filter((l) => R.act[cur] && R.act[cur][l.id]).length : 0, doneGrades = cur ? ALL.filter((l) => R.grade[cur] && R.grade[cur][l.id]).length : 0;
+  const text = {
+    teacher: `Round ${n}: the Teacher hands the Coach the logs that still fail`,
+    coach: `Round ${n}: the Coach (${nice(R.coachModel) || "Sonnet 5.5"}) is rewriting the prompt`,
+    evaluate: `Round ${n}: the Student answers the 30 logs with ${cur || "v3"} (${doneActs} of 30) and the Grader marks them (${doneGrades} of 30)`,
+    judge: `Round ${n}: the Judge decides whether ${cur || "the new prompt"} is kept`,
+  };
+  return { active: RING_ACTIVE[L.phase] || [], caption: text[L.phase] || "" };
+}
+const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+
 const LOOP_EXTRA = 4; // rounds after round 1 (versions 4 to 7)
 const gatesPass = (j) => !!(j && j.json && j.allowed && j.correct);
 const passCount = (v) => ALL.filter((l) => gatesPass(liveJudge(v, l))).length;
@@ -1063,9 +1137,9 @@ async function runLoop() {
 }
 async function runLoopInner() {
   if (R.status !== "live" || (R.loop && (R.loop.running || R.loop.state === "done" || R.loop.state === "error"))) return; // an errored loop waits for Retry: it must not restart itself on every redraw
-  const L = (R.loop = { running: true, state: "running", phase: "student", rounds: [], final: null, stop: "", n: 0 });
+  const L = (R.loop = { running: true, state: "running", phase: "evaluate", rounds: [], final: null, stop: "", n: 0 });
   const failed = (v) => Object.keys(R.err).some((k) => k.includes(`:${v}:`) || k === `c:${v}`);
-  const evalAll = async (v) => { L.cur = v; L.phase = "student"; ensure(v, ALL.map((l) => l.id), true); redraw(); await idle(); };
+  const evalAll = async (v) => { L.cur = v; L.phase = "evaluate"; const t0 = Date.now(); ensure(v, ALL.map((l) => l.id), true); redraw(); await idle(); if (Date.now() - t0 < 900) await pause(900 - (Date.now() - t0)); }; // recorded answers come back at once: keep the Student and Grader lit long enough to be seen
   const stopWith = (state, why) => { L.state = state; L.stop = why; L.running = false; redraw(); };
   const complete = (v) => ALL.every((l) => R.act[v] && R.act[v][l.id] && R.grade[v] && R.grade[v][l.id]);
   await evalAll("v2"); await evalAll("v3");
@@ -1082,11 +1156,13 @@ async function runLoopInner() {
     if (passCount(parent) === ALL.length) { L.stop = "A candidate passes all three gates on all 30 logs."; break; }
     const fails = failingIds(parent, ALL.map((l) => l.id)).slice(0, 6);
     if (!fails.length) { L.stop = "A candidate passes all three gates on all 30 logs."; break; }
+    L.phase = "teacher"; redraw(); await pause(500); // the Teacher's turn, long enough to see
     L.phase = "coach"; delete R.err[`c:${v}`]; busyAdd(`c:${v}`); redraw();
     let parsed;
     try {
       // A reply that could not be used is cached by the server too, so ask again with `fresh` after a bad one.
       const res = await api("/api/coach", { prompt: coachPromptFor(parent, fails, tried), fresh: R.coachBad[v] === true });
+      if (res.cached) await pause(700); // a recorded reply is instant: keep the Coach lit long enough to be seen
       parsed = parseCoach(res.text); R.coachBad[v] = !!parsed.error; if (parsed.error) R.err[`c:${v}`] = parsed.error; else parsed.res = res;
     } catch (e) { R.err[`c:${v}`] = String(e.message || e); }
     R.busy.delete(`c:${v}`);
@@ -1098,6 +1174,7 @@ async function runLoopInner() {
     if (beats(v, parent)) { row.status = "accepted"; parent = v; tried = []; }
     else { row.status = "rejected"; tried = tried.concat(row.lines); }
     if (beats(v, final)) final = v;
+    L.phase = "judge"; redraw(); await pause(600); // the Judge's turn
     L.rounds.push(row); redraw();
     if (passCount(v) === ALL.length) { L.stop = "A candidate passes all three gates on all 30 logs."; break; }
   }
@@ -1379,8 +1456,12 @@ const SCREENS = [
     id: "loop", title: "Round after round", tag: "live", live: true, steps: 1,
     hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["thinking", "This is the prompt we keep. Green is what the Coach added."]],
     notes: "The loop from the last six slides, repeated, until one prompt passes all three gates on all 30 logs or five rounds are used. Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, the Grader marks them, and the Judge accepts the new prompt only if it passes more logs. The Judge's rule changes here, because the goal is now 30 of 30. Say the cost out loud: to pass all 30, the Coach has to read failures from every split, test included. So no log is left unseen, and the final score proves nothing new. To claim it you would hold out a fresh pipeline. Last step: the final prompt, as a diff against version 2.",
-    role: () => (R.loop && R.loop.running ? (R.loop.phase === "coach" ? "coach" : ["student", "grader"]) : "judge"),
-    effect: () => { needCand(); if (R.cand.v3) runLoop(); },
+    role: () => (R.loop && R.loop.running ? null : "judge"), // while it runs, the ring shows who is at work
+    effect: (st) => {
+      needCand(); if (R.cand.v3) runLoop();
+      const slot = document.getElementById("ringslot");
+      if (st === 0 && slot && R.loop && R.loop.running) { const r = ringState(); attachRing(slot); setRing(r.active, r.caption); }
+    },
     render: (st) => {
       const L = R.loop, fm = (x) => (x === null || x === undefined ? "…" : f3(x));
       if (!R.cand.v3) return `${head("Round after round", "Until all <em>30</em> pass")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back four slides: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${retryRow()}${offlineNote()}`;
@@ -1389,13 +1470,11 @@ const SCREENS = [
         const rows = L.rounds.map((r, n) => `<tr class="reveal"><td class="num">${n + 1}</td><td class="num">${r.v}</td><td class="num">${r.parent}</td><td class="clip" title="${esc(r.lines.join(" / "))}">${esc(r.lines.join(" / ") || "no new line")}</td><td class="num">${fm(r.train)}</td><td class="num">${fm(r.val)}</td><td class="num">${fm(r.test)}</td><td class="num">${r.pass} / 30</td><td class="num" title="${r.cost.calls} calls, about $${r.cost.usd.toFixed(3)}">${fmtN(r.cost.tin)} / ${fmtN(r.cost.tout)}</td><td class="num" title="Sum of the ${r.cost.calls} call times. Four calls run at once, so the wall clock is about a quarter of this.">${fmtMs(r.cost.ms)}</td><td class="${r.status === "accepted" || r.status === "round 1" ? "ok" : "faint"}">${esc(r.status)}${L.final === r.v ? " · final" : ""}</td></tr>`).join("");
         const sum = L.rounds.reduce((t, r) => ({ calls: t.calls + r.cost.calls, ms: t.ms + r.cost.ms, tin: t.tin + r.cost.tin, tout: t.tout + r.cost.tout, usd: t.usd + r.cost.usd }), { calls: 0, ms: 0, tin: 0, tout: 0, usd: 0 });
         const total = L.rounds.length ? `<tr><td colspan="8" class="num"><b>All ${L.rounds.length} round${L.rounds.length === 1 ? "" : "s"}</b>${L.running ? " so far" : ""}</td><td class="num" title="${sum.calls} calls, about $${sum.usd.toFixed(2)}"><b>${fmtN(sum.tin)} / ${fmtN(sum.tout)}</b></td><td class="num"><b>${fmtMs(sum.ms)}</b></td><td class="faint">${sum.calls} calls</td></tr>` : "";
-        const cur = L.cur, doneActs = cur ? ALL.filter((l) => R.act[cur] && R.act[cur][l.id]).length : 0;
-        const progress = L.running ? `<div class="loader" role="status"><span class="loader-art">${claudeLoader(48)}</span><span>${L.phase === "coach" ? `${esc(nice(R.coachModel) || "The Coach")} is rewriting the prompt…` : `Round ${L.n || 1}: the Student answers the 30 logs with ${esc(cur || "v3")} (${doneActs} of 30), then the Grader marks them`}</span></div>` : "";
         const end = L.state === "done" ? `<div class="note reveal"><b>${esc(L.stop)}</b> The Judge picks the prompt that passes the most: <b>${esc(L.final)}</b>.</div>` : "";
-        return `${head("Round after round", L.running ? "The loop <em>runs</em>" : "The loop <em>stopped</em>", "Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, and the Judge accepts it only if it passes more logs (a tie goes to the higher mean score).", true)}
-          <div class="scroll tablebox small" tabindex="0" aria-label="Every round of the loop"><table class="compact"><thead><tr><th class="num">Round</th><th class="num">Prompt</th><th class="num">From</th><th>What the Coach added</th><th class="num">train</th><th class="num">val</th><th class="num">test</th><th class="num">Pass all gates</th><th class="num">Tokens in / out</th><th class="num">Model time</th><th>Judge</th></tr></thead><tbody>${rows}${total}</tbody></table></div>
-          <p class="source mono">Model time adds up every call's time. Four calls run at once, so the clock on the wall is about a quarter of it.</p>
-          ${progress}${end}${retryRow()}${offlineNote()}`;
+        return `${head("Round after round", L.running ? "The loop <em>runs</em>" : "The loop <em>stopped</em>", L.running ? "" : "Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, and the Judge accepts it only if it passes more logs (a tie goes to the higher mean score).", true)}
+          <div class="scroll tablebox small${L.running ? " running" : ""}" tabindex="0" aria-label="Every round of the loop"><table class="compact"><thead><tr><th class="num">Round</th><th class="num">Prompt</th><th class="num">From</th><th>What the Coach added</th><th class="num">train</th><th class="num">val</th><th class="num">test</th><th class="num">Pass all gates</th><th class="num">Tokens in / out</th><th class="num">Model time</th><th>Judge</th></tr></thead><tbody>${rows}${total}</tbody></table></div>
+          ${L.running ? "" : `<p class="source mono">Model time adds up every call's time. Four calls run at once, so the clock on the wall is about a quarter of it.</p>`}
+          ${L.running ? `<div id="ringslot" class="ringslot"></div>` : ""}${end}${retryRow()}${offlineNote()}`;
       }
       if (L.state !== "done") return `${head("The result", "The prompt we <em>keep</em>")}<div class="note">${L.state === "error" ? "The loop stopped on an error: " + esc(L.stop) : spinner + "The loop is still running. Go back one step to watch it."}</div>${retryRow()}${offlineNote()}`;
       const f = L.final, d = diffSegs(livePrompt("v2"), livePrompt(f));
