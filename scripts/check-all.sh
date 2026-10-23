@@ -8,7 +8,13 @@ EK="${EKLAVYA_DIR:-$HOME/Workspace/ProjectAj14/eklavya}"
 if [ -d "$EK/web/public" ]; then python3 -I build.py --eklavya "$EK"; else echo "build skipped: no Eklavya checkout at $EK (set EKLAVYA_DIR)"; fi
 node scripts/verify-numbers.js | tail -1
 node scripts/smoke-render.js | tail -1
-node --test --test-timeout=60000 scripts/test-server.mjs scripts/test-loop.js 2>&1 | grep -E '^(✖|ℹ (tests|pass|fail))'
+OUT="$(mktemp)"
+if node --test --test-timeout=60000 scripts/test-server.mjs scripts/test-loop.js > "$OUT" 2>&1; then
+  grep -E '^ℹ (tests|pass|fail)' "$OUT"
+else
+  cat "$OUT"; rm -f "$OUT"; echo "tests failed"; exit 1
+fi
+rm -f "$OUT"
 if grep -nE '#[0-9a-fA-F]{3,8}\b|rgba?\(|--vd-' src/template.html | grep -v 'href\|&#\|data:image'; then echo "design grep: hits above"; exit 1; fi
 echo "design grep: clean"
 echo "all automated checks passed"
