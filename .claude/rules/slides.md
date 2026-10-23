@@ -65,8 +65,9 @@ One entrance for everything, so Next always feels the same. The contract lives i
   (the set in `mascot.js`). Professional but light: never a joke, never on every sentence. The title screen has no mascot (speaker's call, 23 Oct).
   While calls run, the line says the model is working. When the slide is tall it keeps only the face.
 - **Stick figures** (`stick(kind)`, roles teacher, student, grader, coach, judge) explain GEPA, one job each, drawn as inline SVG in role tokens (`--viz-*`). They are original drawings based on the speaker's explainer video, never frames or files from it. A figure's job on a slide must match what GEPA's README says; label analogies as analogies and say what each character is in GEPA.
-- **The role figure** (`role` on a screen, a string or `(step) => name`) puts the character whose turn it is, Teacher, Student, Grader, Coach or Judge, bottom right
-  above the footer, with its name. Every screen from the score slide on has one, so the audience always knows who is acting. It sits in the slide's side gutter
+- **The role figure** (`role` on a screen: a name, `(step) => name`, or an array of names when several act at once, as the Student and the Grader do while a prompt is scored) puts the
+  characters whose turn it is, Teacher, Student, Grader, Coach or Judge, bottom right above the footer, stacked, each with its name. The right character on the right step matters:
+  `scripts/verify-numbers.js` pins the roles of every step, so change it there too. Every screen from the score slide on has one, so the audience always knows who is acting. It sits in the slide's side gutter
   and is hidden below 760 px.
 - **No product or project names on slides** other than the subject (GEPA and the models). The header carries one logo, top right: NonStop io's, the speaker's employer (`src/nonstop-logo.svg`, the white-text version made for dark grounds, embedded as a data URI through `<img>`). No other brand mark or wordmark.
   Another project's results never appear on a slide. The loading critter (see `live-model-calls.md`) carries no text.

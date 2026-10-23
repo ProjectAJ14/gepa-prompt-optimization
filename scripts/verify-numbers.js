@@ -22,9 +22,9 @@ sandbox.window.document = sandbox.document;
 vm.createContext(sandbox);
 scripts.forEach((code, i) => {
   const last = i === scripts.length - 1;
-  vm.runInContext(last ? code + "\n;globalThis.__X = { scoreReply, parseCoach, diffSegs, LOGS, LABELS };" : code, sandbox);
+  vm.runInContext(last ? code + "\n;globalThis.__X = { scoreReply, parseCoach, diffSegs, LOGS, LABELS, SCREENS, ROLE_NAME };" : code, sandbox);
 });
-const { scoreReply, parseCoach, diffSegs, LOGS, LABELS } = sandbox.__X;
+const { scoreReply, parseCoach, diffSegs, LOGS, LABELS, SCREENS, ROLE_NAME } = sandbox.__X;
 
 // Nothing on the live screens is mocked any more, so there are no stored scores to compare. What can go wrong without a model is
 // the code around it: the three gates and the score, the parsing of the Coach's reply, the diff, and the data itself.
@@ -58,5 +58,21 @@ check("every label is allowed", LOGS.every((l) => LABELS.includes(l.exp)));
 check("a pipeline sits in one split only", Object.values(LOGS.reduce((m, l) => ((m[l.pipe] = m[l.pipe] || new Set()).add(l.split), m), {})).every((x) => x.size === 1));
 check("each split has every label at least once", ["train", "val", "test"].every((sp) => LABELS.every((lb) => LOGS.some((l) => l.split === sp && l.exp === lb))));
 check("the five-log minibatch has one log per label", (() => { const ids = [1, 2, 3, 6, 7]; const ls = ids.map((i) => LOGS.find((l) => l.id === i)); return ls.every((l) => l.split === "train") && new Set(ls.map((l) => l.exp)).size === 5; })());
+// Who is on screen at each step: the character whose turn it is, and two or three when several act at once (the Student runs the model
+// while the Grader marks it). A wrong figure on a step misleads the audience, so every step with a role is pinned here.
+const roleAt = (id, st) => { const sc = SCREENS.find((x) => x.id === id); const r = typeof sc.role === "function" ? sc.role(st) : sc.role; return [].concat(r || []).filter(Boolean).join("+") || "-"; };
+const ROLES = {
+  score: ["teacher", "teacher", "teacher", "student+grader", "student+grader"],
+  cast: ["teacher", "student", "grader", "coach", "judge", "-"],
+  "student-grader": ["teacher", "student", "grader", "grader"],
+  coach: ["coach", "coach", "coach"],
+  retry: ["student+grader", "grader"],
+  judge: ["judge", "student+grader+judge"],
+  test: ["teacher", "student+grader+judge"],
+  checklist: ["-"],
+};
+for (const [id, want] of Object.entries(ROLES)) check(`roles on "${id}": ${want.join(" | ")}`, want.every((w, st) => roleAt(id, st) === w), want.map((w, st) => roleAt(id, st)).join(" | "));
+check("every role name is a known character", Object.values(ROLES).flat().flatMap((x) => x.split("+")).filter((x) => x !== "-").every((x) => ROLE_NAME[x]));
+check("screens with no role show none", ["title", "v1", "v2", "gepa-what", "gepa-loop"].every((id) => roleAt(id, 0) === "-"));
 console.log(bad ? `\n${bad} problem(s)` : "\nall numbers match");
 process.exit(bad ? 1 : 0);

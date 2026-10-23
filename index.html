@@ -494,7 +494,10 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .stack { display: flex; align-items: stretch; justify-content: center; gap: 12px; flex-wrap: wrap; } .stack .pcard { width: 13em; display: flex; flex-direction: column; justify-content: center; } .stack .arrow { align-self: center; }
   .bignum { font-family: var(--font-mono); font-size: 2.4em; margin: 0; color: var(--ink); }
   /* The role figure: the character whose turn it is, bottom right, on every screen that has a role. */
-  .role { position: fixed; right: 6px; bottom: 70px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 2px; pointer-events: none; }
+  .role { position: fixed; right: 6px; bottom: 70px; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; }
+  .role[hidden] { display: none; } /* the class above sets display, which would otherwise beat the hidden attribute */
+  .role .rfig { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .role.many .stick { height: 72px; }
   .role .stick { height: 96px; }
   .role span { font-family: var(--font-mono); font-size: 0.58em; letter-spacing: 0.04em; text-transform: uppercase; color: var(--spot); background: var(--bg); padding: 0 4px; }
   @media (max-width: 760px) { .role { display: none; } }
@@ -1204,7 +1207,7 @@ const SCREENS = [
   },
   {
     id: "score", title: "We need a score", tag: "live", live: true, steps: 4,
-    role: () => "teacher",
+    role: (st) => (st >= 3 ? ["student", "grader"] : "teacher"), // steps 3 and 4 run the model and mark it: two characters at work
     hints: [["curious", "Thirty logs. The Teacher brings them."], ["focused", "No answer key, no score."], ["wink", "Split by pipeline, not by row."],
       ["surprised", "Same replies, now with a score next to them."], ["thinking", "Same logs, new prompt, new numbers."]],
     notes: "This is the real subject of the talk. Step by step: examples, the right answer, the split by pipeline, then score v1 and v2 with real model replies. The judge column is a second model reading each reply for meaning. The gate columns are code. Where they disagree is the point. Click a row to open it: the exact prompt sent, the full reply, how the score was worked out, and the judge's reasoning.",
@@ -1323,7 +1326,7 @@ const SCREENS = [
     id: "retry", title: "The Student tries again", tag: "live", live: true, steps: 1,
     hints: [["curious", "Same five logs, new prompt."], ["thinking", "Same five logs. Did the number move?"]],
     notes: "The Student runs the same five logs with version 3, and the Grader marks them again. Before and after, side by side. Click a row to open the exact version 3 prompt, the reply and the note. Do not say it worked until the numbers say so.",
-    role: (st) => (st === 0 ? "student" : "grader"),
+    role: (st) => (st === 0 ? ["student", "grader"] : "grader"),
     effect: () => { needCand(); if (R.cand.v3) ensure("v3", MINI, true); },
     render: (st) => {
       if (!R.cand.v3) return `${head("Round 1", "Same five logs, <em>version 3</em>")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back one slide: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${retryRow()}${offlineNote()}`;
@@ -1339,7 +1342,7 @@ const SCREENS = [
     id: "judge", title: "The Judge decides", tag: "live", live: true, steps: 1,
     hints: [["focused", "Rule one: did it beat its parent?"], ["thinking", "Rule two: check logs it has never seen."]],
     notes: "Rule one: did version 3 beat version 2 on the same five logs? If not, it is dropped. Rule two: check both on the ten validation logs, which the Coach never saw. The winner on validation is the one we keep. Real GEPA keeps a pool of candidates that each win on different examples; with two candidates we simply compare. If version 3 was dropped on rule one, we still check it on validation, for the record, so you can see what would have happened.",
-    role: () => "judge",
+    role: (st) => (st === 0 ? "judge" : ["student", "grader", "judge"]),
     effect: (st) => { needCand(); if (R.cand.v3) { ensure("v3", MINI, true); if (st >= 1) { ensure("v3", ids("val"), true); ensure("v2", ids("val"), true); } } },
     render: (st) => {
       if (!R.cand.v3) return `${head("Round 1", "The Judge <em>decides</em>")}<div class="note warnnote">${R.status === "live" ? "There is no version 3 yet. Go back two slides: the Coach writes it." : "Version 3 needs the server and the Coach."}</div>${offlineNote()}`;
@@ -1361,7 +1364,7 @@ const SCREENS = [
     id: "test", title: "The test, once", tag: "live", live: true, steps: 1,
     hints: [["wink", "Ten logs held back. One look."], ["focused", "One look. Then no changes."]],
     notes: "The Teacher kept ten logs sealed: two pipelines the loop never saw. We open them once. If the fence counts on screen show it, say plainly that the gain is mostly a format fix: the Coach found a real bug, but a format bug, and a parser that strips code fences would give a similar jump. Then say the rule out loud: if you change the prompt because of this number, it is not a clean test any more. The winner leaves as a file plus a diff for a person to review.",
-    role: (st) => (st === 0 ? "teacher" : "judge"),
+    role: (st) => (st === 0 ? "teacher" : ["student", "grader", "judge"]),
     effect: (st) => { needCand(); if (st >= 1 && R.cand.v3) { for (const v of ["v2", "v3"]) for (const set of [MINI, ids("val"), ids("test")]) ensure(v, set, true); } },
     render: (st) => {
       if (st === 0) return `${head("The test", "Ten logs <em>held back</em>", "Two pipelines, kafka-events and beam-telemetry. In round 1 the Coach never saw them and the Judge never used them.", true)}
@@ -1382,7 +1385,7 @@ const SCREENS = [
     id: "loop", title: "Round after round", tag: "live", live: true, steps: 1,
     hints: [["excited", "Round after round, until all 30 pass or the budget ends."], ["thinking", "This is the prompt we keep. Green is what the Coach added."]],
     notes: "The loop from the last six slides, repeated, until one prompt passes all three gates on all 30 logs or five rounds are used. Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, the Grader marks them, and the Judge accepts the new prompt only if it passes more logs. The Judge's rule changes here, because the goal is now 30 of 30. Say the cost out loud: to pass all 30, the Coach has to read failures from every split, test included. So no log is left unseen, and the final score proves nothing new. To claim it you would hold out a fresh pipeline. Last step: the final prompt, as a diff against version 2.",
-    role: () => (R.loop && R.loop.running ? (R.loop.phase === "coach" ? "coach" : "student") : "judge"),
+    role: () => (R.loop && R.loop.running ? (R.loop.phase === "coach" ? "coach" : ["student", "grader"]) : "judge"),
     effect: () => { needCand(); if (R.cand.v3) runLoop(); },
     render: (st) => {
       const L = R.loop, fm = (x) => (x === null || x === undefined ? "…" : f3(x));
@@ -1509,15 +1512,17 @@ function draw(motion) {
   const hk = sc.id + "|" + hint[1];
   if (hint[1]) comp.innerHTML = `<div class="mascot">${art}</div><div class="bubble${motion && hk !== S.hint ? " reveal" : ""}">${esc(hint[1])}</div>`;
   S.hint = hk;
-  const rk = typeof sc.role === "function" ? sc.role(st) : sc.role;
+  // The characters at work on this step: one name, or several when more than one is acting (the Student runs the model while the Grader marks it).
+  const rawRole = typeof sc.role === "function" ? sc.role(st) : sc.role;
+  const roles = [].concat(rawRole || []).filter(Boolean);
   const roleEl = $("role");
-  roleEl.hidden = !rk;
-  if (rk) {
-    const rkey = sc.id + "|" + rk;
-    roleEl.className = "role" + (motion && rkey !== S.role ? " reveal" : "");
-    roleEl.innerHTML = `${stick(rk)}<span>${ROLE_NAME[rk]}</span>`;
+  roleEl.hidden = !roles.length;
+  if (roles.length) {
+    const rkey = sc.id + "|" + roles.join(",");
+    roleEl.className = "role" + (roles.length > 1 ? " many" : "") + (motion && rkey !== S.role ? " reveal" : "");
+    roleEl.innerHTML = roles.map((rk) => `<div class="rfig">${stick(rk)}<span>${ROLE_NAME[rk]}</span></div>`).join("");
     S.role = rkey;
-  } else S.role = null;
+  } else { S.role = null; roleEl.innerHTML = ""; }
   const n = $("notes");
   n.hidden = !S.notes;
   n.textContent = sc.notes;
