@@ -1,0 +1,6 @@
+# Third-party material
+
+- **NonStop io logo** (`src/nonstop-logo.svg`, shown in the page header): NonStop io's trademark. It is not covered by the MIT licence in `LICENSE`. Delete the file and rebuild if you reuse the page.
+- **Design tokens and the mascot** (inlined into `index.html` by `build.py`): from https://github.com/ProjectAJ14/eklavya, MIT, copyright (c) 2026 Ajay Kumar.
+- **GEPA** (https://github.com/gepa-ai/gepa, MIT): described on the slides, not included. Every claim about it comes from its README.
+- **Fonts** are loaded from Google Fonts when online; system fonts take over offline.
