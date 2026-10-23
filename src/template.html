@@ -196,6 +196,9 @@
   .tablebox thead th { position: sticky; top: 0; background: var(--bg); z-index: 1; }
   /* GEPA screens: stick figures and the cast of the loop */
   .stick { height: clamp(96px, 15vh, 170px); width: auto; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; fill: none; overflow: visible; }
+  .flow .stick { height: clamp(80px, 11vh, 130px); }
+  .flow + .source { margin-top: 6px; }
+  .flow .pcard { padding: 6px 14px; }
   .flow .col { display: flex; flex-direction: column; gap: 10px; }
   .flow { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; margin: 8px 0; }
   .pcard { border: 1px solid var(--line-2); background: var(--panel); padding: 10px 16px; font-size: 0.9em; max-width: 17em; text-align: left; }
@@ -692,29 +695,20 @@ const SCREENS = [
     },
   },
   {
-    id: "gepa-what", title: "What is GEPA?", tag: "ref", steps: 1,
-    hints: [["happy", "A weak prompt gets wrong answers. GEPA rewrites it."], ["wink", "One install, and there is a paper."]],
-    notes: "One idea, then where to get it. A prompt is the instructions an AI follows. When they are weak, it keeps getting things wrong. GEPA, short for Genetic-Pareto, rewrites the prompt: it runs it, reads what went wrong, writes a better one, and keeps it only if it improved. It can optimize any text, as long as you give it a way to score the result. Last step: how to get it. Facts: the GEPA README, read 23 Oct 2026. The two answers on screen are an illustration, not results.",
-    render: (st) => {
+    id: "gepa-what", title: "What is GEPA?", tag: "ref", steps: 0,
+    hints: [["happy", "A weak prompt gets wrong answers. GEPA rewrites it."]],
+    notes: "One slide. A prompt is the instructions an AI follows. When they are weak, it keeps getting things wrong. GEPA, short for Genetic-Pareto, rewrites the prompt: it runs it, reads what went wrong, writes a better one, and keeps it only if it improved. It can optimize any text you can score: prompts, code, configurations. It is open source (MIT): pip install gepa. It also ships as a Claude plugin (an agent skill) that you add with two /plugin commands. Facts: the GEPA README, read 23 Oct 2026. The two answers on screen are an illustration, not results.",
+    render: () => {
       const pc = (k, t, cls) => `<div class="pcard ${cls || ""}"><span class="k">${k}</span>${esc(t)}</div>`;
-      const heads = [
-        head("Meet GEPA", "A weak prompt gets wrong answers. GEPA <em>rewrites</em> it", "A prompt is the set of instructions an AI follows. GEPA is short for Genetic-Pareto."),
-        head("Where to get it", "Open source, one <em>install</em>"),
-      ];
-      const bodies = [
-        `<div class="flow reveal"><div class="col">${pc("prompt, version 1", "Read the log. Name the failure.")}${pc("its answer", "UPSTREAM_FAILURE", "bad")}</div>
+      return `${head("Meet GEPA", "A weak prompt gets wrong answers. GEPA <em>rewrites</em> it", "A prompt is the set of instructions an AI follows. GEPA is short for Genetic-Pareto.", true)}
+        <div class="flow"><div class="col">${pc("prompt, version 1", "Read the log. Name the failure.")}${pc("its answer", "UPSTREAM_FAILURE", "bad")}</div>
            <span class="arrow">&rarr;</span><div class="gbox">${stick("coach")}<b>GEPA</b></div><span class="arrow">&rarr;</span>
            <div class="col">${pc("prompt, version 2", "Better instructions, written for you.", "new")}${pc("its answer", "LATE_DATA", "good")}</div></div>
-         <p class="source mono">Illustration. Log: "Checkpoint lag 47 min behind source". The right answer is LATE_DATA</p>
-         <p class="source">It runs the prompt, reads what went wrong, writes a better one, and keeps it only if it improved.</p>
-         <div class="chiprow">${["prompts", "code", "configurations", "agent architectures"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
-         <p class="source mono">It can optimize any text, as long as you give it a way to score the result</p>`,
-        `<div class="cluster wide reveal"><div class="card"><h3>Install</h3><pre class="term" style="margin:0"><span class="p">$</span> pip install gepa\n<span class="c"># or the latest from main</span>\n<span class="p">$</span> pip install git+https://github.com/gepa-ai/gepa.git</pre></div>
-           <div class="card"><h3>Repository</h3><p>${link("https://github.com/gepa-ai/gepa", "github.com/gepa-ai/gepa")}</p><p>MIT licence. Paper: ${link("https://arxiv.org/abs/2507.19457", "arXiv 2507.19457")}</p></div></div>
-         <div class="chiprow reveal">${["gepa.optimize", "optimize_anything", "dspy.GEPA"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
-         <p class="source mono">Three ways in, from the GEPA repository README</p>`,
-      ];
-      return `${heads[st]}${bodies[st]}<p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
+        <p class="source mono">Illustration. Log: "Checkpoint lag 47 min behind source". The right answer is LATE_DATA</p>
+        <p class="source">It runs the prompt, reads what went wrong, writes a better one, and keeps it only if it improved.</p>
+        <div class="cluster wide"><div class="card"><h3>Open source</h3><pre class="term" style="margin:0"><span class="p">$</span> pip install gepa</pre><p class="faint" style="font-size:.85em;margin-bottom:0">MIT licence · ${link("https://github.com/gepa-ai/gepa", "github.com/gepa-ai/gepa")} · ${link("https://arxiv.org/abs/2507.19457", "paper")}</p></div>
+          <div class="card"><h3>Also a Claude plugin</h3><pre class="term" style="margin:0"><span class="p">&gt;</span> /plugin marketplace add gepa-ai/gepa\n<span class="p">&gt;</span> /plugin install gepa-optimize-anything@gepa</pre><p class="faint" style="font-size:.85em;margin-bottom:0">An agent skill that lets Claude Code run GEPA for you</p></div></div>
+        <p class="source mono">Source: the GEPA repository README, read 23 Oct 2026</p>`;
     },
   },
   {
