@@ -481,6 +481,7 @@ eklavya-mascot { display:inline-flex; flex-shrink:0; vertical-align:middle; line
   .tablebox thead th { position: sticky; top: 0; background: var(--bg); z-index: 1; }
   /* GEPA screens: stick figures and the cast of the loop */
   .stick { height: clamp(96px, 15vh, 170px); width: auto; stroke: var(--ink); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; fill: none; overflow: visible; }
+  .flow .col { display: flex; flex-direction: column; gap: 10px; }
   .flow { display: flex; align-items: center; justify-content: center; gap: 18px; flex-wrap: wrap; margin: 8px 0; }
   .pcard { border: 1px solid var(--line-2); background: var(--panel); padding: 10px 16px; font-size: 0.9em; max-width: 17em; text-align: left; }
   .pcard .k { display: block; font-family: var(--font-mono); font-size: 0.72em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--faint); margin-bottom: 4px; }
@@ -1064,33 +1065,23 @@ const SCREENS = [
     },
   },
   {
-    id: "gepa-what", title: "What is GEPA?", tag: "ref", steps: 4,
-    hints: [["curious", "A prompt is only instructions. Weak ones, wrong answers."], ["happy", "GEPA rewrites the prompt for you."],
-      ["thinking", "It reads the why, not only the score."], ["focused", "One version of the text is one candidate."], ["wink", "One install, and there is a paper."]],
-    notes: "Four ideas, one per step. 1) A weak prompt keeps getting things wrong. 2) GEPA, short for Genetic-Pareto, rewrites the prompt: run it, read what failed, write a better one, keep it only if it improved. 3) The difference from a plain score: it reads the trace and the feedback text. 4) A candidate is one version of the text. Last step: how to get it. Facts: the GEPA README, read 23 Oct 2026. The wrong answer and the feedback line on screen are illustrations, not results.",
+    id: "gepa-what", title: "What is GEPA?", tag: "ref", steps: 1,
+    hints: [["happy", "A weak prompt gets wrong answers. GEPA rewrites it."], ["wink", "One install, and there is a paper."]],
+    notes: "One idea, then where to get it. A prompt is the instructions an AI follows. When they are weak, it keeps getting things wrong. GEPA, short for Genetic-Pareto, rewrites the prompt: it runs it, reads what went wrong, writes a better one, and keeps it only if it improved. It can optimize any text, as long as you give it a way to score the result. Last step: how to get it. Facts: the GEPA README, read 23 Oct 2026. The two answers on screen are an illustration, not results.",
     render: (st) => {
       const pc = (k, t, cls) => `<div class="pcard ${cls || ""}"><span class="k">${k}</span>${esc(t)}</div>`;
       const heads = [
-        head("The problem", "A prompt is a set of <em>instructions</em>", "When they are weak, the AI keeps getting things wrong."),
-        head("Meet GEPA", "It <em>rewrites</em> the prompt for you", "GEPA is short for Genetic-Pareto."),
-        head("The idea", "It reads the <em>why</em>, not only the score"),
-        head("One word to learn", "A <em>candidate</em> is one version of the text"),
+        head("Meet GEPA", "A weak prompt gets wrong answers. GEPA <em>rewrites</em> it", "A prompt is the set of instructions an AI follows. GEPA is short for Genetic-Pareto."),
         head("Where to get it", "Open source, one <em>install</em>"),
       ];
       const bodies = [
-        `<div class="flow reveal">${stick("student")}${pc("the prompt", "Read the log. Name the failure.")}<span class="arrow">&rarr;</span>${pc("its answer", "UPSTREAM_FAILURE", "bad")}${pc("the right answer", "LATE_DATA", "good")}</div>
-         <p class="source mono">Illustration. Log: "Checkpoint lag 47 min behind source"</p>`,
-        `<div class="flow reveal">${pc("prompt, version 1", "Read the log. Name the failure.")}<span class="arrow">&rarr;</span><div class="gbox">${stick("coach")}<b>GEPA</b></div><span class="arrow">&rarr;</span>${pc("prompt, version 2", "Better instructions, written for you.", "new")}</div>
-         <p class="source reveal">It runs the prompt, reads what went wrong, writes a better one, and keeps it only if it improved.</p>
-         <div class="chiprow reveal">${["prompts", "code", "configurations", "agent architectures"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
+        `<div class="flow reveal"><div class="col">${pc("prompt, version 1", "Read the log. Name the failure.")}${pc("its answer", "UPSTREAM_FAILURE", "bad")}</div>
+           <span class="arrow">&rarr;</span><div class="gbox">${stick("coach")}<b>GEPA</b></div><span class="arrow">&rarr;</span>
+           <div class="col">${pc("prompt, version 2", "Better instructions, written for you.", "new")}${pc("its answer", "LATE_DATA", "good")}</div></div>
+         <p class="source mono">Illustration. Log: "Checkpoint lag 47 min behind source". The right answer is LATE_DATA</p>
+         <p class="source">It runs the prompt, reads what went wrong, writes a better one, and keeps it only if it improved.</p>
+         <div class="chiprow">${["prompts", "code", "configurations", "agent architectures"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
          <p class="source mono">It can optimize any text, as long as you give it a way to score the result</p>`,
-        `<div class="cluster wide two reveal">
-           <div class="card"><h3>A score alone</h3><p class="bignum">0.6</p><p>Tells you how much. Not why.</p></div>
-           <div class="card"><h3>What GEPA reads</h3><pre class="term" style="margin:0 0 8px">reply     UPSTREAM_FAILURE\nfeedback  the log says lag,\n          so this is LATE_DATA</pre><p>The full trace: error messages, reasoning, evaluator logs.</p></div></div>
-         <p class="source mono">Illustration of one example, not a measured result</p>`,
-        `<div class="stack reveal">${pc("candidate 0", "Your starting prompt, the seed")}<span class="arrow">&rarr;</span>${pc("candidate 1", "One edit later", "new")}<span class="arrow">&rarr;</span>${pc("candidate 2", "Another edit")}</div>
-         <p class="source reveal">GEPA keeps a pool of candidates. A better one joins the pool.</p>
-         <pre class="term reveal" style="max-width:34em;margin:12px auto 0"><span class="c"># in the README, a candidate is a dictionary</span>\nseed_prompt = {"system_prompt": "..."}</pre>`,
         `<div class="cluster wide reveal"><div class="card"><h3>Install</h3><pre class="term" style="margin:0"><span class="p">$</span> pip install gepa\n<span class="c"># or the latest from main</span>\n<span class="p">$</span> pip install git+https://github.com/gepa-ai/gepa.git</pre></div>
            <div class="card"><h3>Repository</h3><p>${link("https://github.com/gepa-ai/gepa", "github.com/gepa-ai/gepa")}</p><p>MIT licence. Paper: ${link("https://arxiv.org/abs/2507.19457", "arXiv 2507.19457")}</p></div></div>
          <div class="chiprow reveal">${["gepa.optimize", "optimize_anything", "dspy.GEPA"].map((x) => `<span class="chip">${x}</span>`).join("")}</div>
