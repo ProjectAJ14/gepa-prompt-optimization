@@ -34,8 +34,8 @@ Any slide that shows a model call must show all of these. Do not ship a call tha
    a `<pre tabindex="0">`, never a `<textarea>`). Never an auto-growing card: four of those stacked pushed the
    slide off the screen.
 3. **The grader's verdict and its reason**, when the call is graded.
-4. **When it happened**: model, local date and time down to the second (`when()`), duration, and "recorded" when the
-   answer came from the cache. Older recordings without a time say "time not recorded"; do not invent one.
+4. **When it happened and what it cost**: model, local date and time down to the second (`when()`), duration, **tokens in and out** (`metaLine()`; "in" is fresh plus cached input), and "recorded" when the
+   answer came from the cache. Anything that groups calls (a table of runs, a loop round) also shows the **summed tokens and summed model time** (`costLine()`, `costOf()`), labelled as a sum: four calls run at once, so the wall clock is about a quarter of it. Older recordings without a time say "time not recorded"; do not invent one.
 5. **A "Run now" button** (`runNow()` and `rerun()`): one click calls the model again and ignores the recording
    (the server's `fresh` flag), then replaces the recorded answer. Every call has one, and a graded call has a second
    "Run judge now". Re-running an actor call clears its stale grade so it is re-graded. The button reads "Running…"

@@ -212,7 +212,7 @@
   .role .stick { height: 96px; }
   .role span { font-family: var(--font-mono); font-size: 0.62em; letter-spacing: var(--tracking-caps); text-transform: uppercase; color: var(--spot); background: var(--bg); padding: 0 4px; }
   @media (max-width: 760px) { .role { display: none; } }
-  pre.fixedp { max-height: calc(100vh - 490px); overflow: auto; } pre.fixedp.tall { max-height: calc(100vh - 440px); }
+  pre.fixedp { max-height: calc(100vh - 490px); overflow: auto; } pre.fixedp.tall { max-height: calc(100vh - 500px); }
   td.clip { max-width: 22em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: var(--font-mono); font-size: 0.9em; }
   .tablebox.small { max-height: calc(100vh - 450px); }
   .dgrid.one { grid-template-columns: minmax(0, 1fr); max-width: 56em; margin: 0 auto; }
@@ -446,7 +446,12 @@ const CLAUDE_LOADER = `/*LOADER_SVG*/`;
 const claudeLoader = (width) => `<span class="claude-loader" style="width:${width}px">${CLAUDE_LOADER}</span>`;
 const loader = (what, key, width = 96) => `<div class="loader" role="status"><span class="loader-art">${claudeLoader(width)}</span><span>${esc(what)}</span><span class="mono elapsed" data-since="${R.since[key] || Date.now()}">0 s</span></div>`;
 const when = (a) => a && a.at ? new Date(a.at).toLocaleString(undefined, { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit", second: "2-digit" }) : "time not recorded";
-const metaLine = (a) => `${nice(a.model)} · ${when(a)} · ${(a.ms / 1000).toFixed(1)} s${a.cached ? " · recorded" : ""}`;
+// Every call shows its time and its tokens. "in" counts everything the model read (fresh, cached and cache-written input); "out" is what it wrote.
+const tokIn = (a) => (a && a.tokens ? (a.tokens.input || 0) + (a.tokens.cacheWrite || 0) + (a.tokens.cacheRead || 0) : 0);
+const tokOut = (a) => (a && a.tokens ? a.tokens.output || 0 : 0);
+const fmtN = (n) => (n >= 10000 ? (n / 1000).toFixed(0) + "k" : n >= 1000 ? (n / 1000).toFixed(1) + "k" : String(n));
+const fmtMs = (ms) => (ms < 60000 ? (ms / 1000).toFixed(1) + " s" : Math.floor(ms / 60000) + " min " + String(Math.round((ms % 60000) / 1000)).padStart(2, "0") + " s");
+const metaLine = (a) => `${nice(a.model)} · ${when(a)} · ${(a.ms / 1000).toFixed(1)} s · ${fmtN(tokIn(a))} in, ${fmtN(tokOut(a))} out tokens${a.cached ? " · recorded" : ""}`;
 // "Run now": call the model again for one call, ignoring the recording.
 const runNow = (kind, v, id, label) => {
   const busy = R.busy.has(`${kind === "act" ? "a" : "g"}:${v}:${id}`), off = R.status !== "live" || R.mode === "replay";
@@ -611,6 +616,7 @@ async function runCoach(fresh) {
     const res = await api("/api/coach", { prompt: input, fresh: fresh === true });
     res.input = input;
     const parsed = parseCoach(res.text);
+    if (!parsed.error) parsed.res = res;
     R.coachRes = res;
     if (parsed.error) { R.cand.v3 = null; R.err[key] = parsed.error; }
     else { R.cand.v3 = parsed; R.loop = null; for (const v of ["v3", "v4", "v5", "v6", "v7"]) { if (v !== "v3") R.cand[v] = null; R.act[v] = {}; R.grade[v] = {}; } for (const k of Object.keys(R.err)) if (/^[ag]:v[3-7]:/.test(k) || /^c:v[4-7]$/.test(k)) delete R.err[k]; }
@@ -639,7 +645,22 @@ const gatesPass = (j) => !!(j && j.json && j.allowed && j.correct);
 const passCount = (v) => ALL.filter((l) => gatesPass(liveJudge(v, l))).length;
 const failingIds = (v, idList) => idList.filter((id) => !gatesPass(liveJudge(v, LOGS.find((l) => l.id === id))));
 const addedLines = (parent, child) => { const had = new Set(parent.split("\n").map((x) => x.trim())); return child.split("\n").map((x) => x.trim()).filter((x) => x && !had.has(x)); };
-const loopSummary = (v, parentV) => ({ v, parent: parentV, why: R.cand[v] ? R.cand[v].why : "", lines: R.cand[v] ? addedLines(livePrompt(parentV), R.cand[v].prompt) : [],
+// What a candidate cost: every call that made and marked it (the Coach's call, then 30 replies and 30 grades). Times are summed call times;
+// four calls run at once, so the wall clock is roughly a quarter of the model time.
+function costOf(v) {
+  const calls = [];
+  if (R.cand[v] && R.cand[v].res) calls.push(R.cand[v].res);
+  for (const l of ALL) { if (R.act[v] && R.act[v][l.id]) calls.push(R.act[v][l.id]); if (R.grade[v] && R.grade[v][l.id]) calls.push(R.grade[v][l.id]); }
+  return { calls: calls.length, ms: calls.reduce((t, c) => t + (c.ms || 0), 0), tin: calls.reduce((t, c) => t + tokIn(c), 0), tout: calls.reduce((t, c) => t + tokOut(c), 0), usd: calls.reduce((t, c) => t + (c.costUsd || 0), 0) };
+}
+// The cost of running one version on a set of logs: the replies and the grades.
+function costLine(v, idList) {
+  const calls = [];
+  for (const id of idList) { if (R.act[v][id]) calls.push(R.act[v][id]); if (R.grade[v][id]) calls.push(R.grade[v][id]); }
+  const ms = calls.reduce((t, c) => t + (c.ms || 0), 0);
+  return `<span class="faint" title="Summed call times: four calls run at once, so the wall clock is about a quarter of this">${fmtN(calls.reduce((t, c) => t + tokIn(c), 0))} in / ${fmtN(calls.reduce((t, c) => t + tokOut(c), 0))} out tokens · ${fmtMs(ms)} model time · ${calls.length} calls</span>`;
+}
+const loopSummary = (v, parentV) => ({ v, cost: costOf(v), parent: parentV, why: R.cand[v] ? R.cand[v].why : "", lines: R.cand[v] ? addedLines(livePrompt(parentV), R.cand[v].prompt) : [],
   train: liveMean(v, "train"), val: liveMean(v, "val"), test: liveMean(v, "test"), pass: passCount(v), status: "" });
 async function runLoop() {
   if (R.status !== "live" || (R.loop && (R.loop.running || R.loop.state === "done"))) return;
@@ -665,7 +686,7 @@ async function runLoop() {
     let parsed;
     try {
       const res = await api("/api/coach", { prompt: coachPromptFor(parent, fails, tried) });
-      parsed = parseCoach(res.text); if (parsed.error) R.err[`c:${v}`] = parsed.error;
+      parsed = parseCoach(res.text); if (parsed.error) R.err[`c:${v}`] = parsed.error; else parsed.res = res;
     } catch (e) { R.err[`c:${v}`] = String(e.message || e); }
     R.busy.delete(`c:${v}`);
     if (R.err[`c:${v}`]) return stopWith("error", R.err[`c:${v}`]);
@@ -810,7 +831,7 @@ const SCREENS = [
       }).join("");
       const lm = (split) => { const m = v ? liveMean(v, split) : null; return m === null ? "…" : f3(m); };
       const means = v ? `<div class="row reveal"><span class="big">${v}</span><span class="arrow">&rarr;</span>
-        <span>train <b>${lm("train")}</b></span><span>val <b>${lm("val")}</b></span><span class="faint">test hidden</span></div>` : "";
+        <span>train <b>${lm("train")}</b></span><span>val <b>${lm("val")}</b></span><span class="faint">test hidden</span>${costLine(v, ids("train").concat(ids("val")))}</div>` : "";
       const captions = [
         "Thirty invented failure logs from six pipelines. This is the raw material.",
         "Each log gets the right answer written down next to it. Without that, there is nothing to score against.",
@@ -912,7 +933,7 @@ const SCREENS = [
       return `${head("Round 1", "Same five logs, <em>version 3</em>", "", true)}
         <div class="scroll tablebox small" tabindex="0" aria-label="Version 2 against version 3 on the five logs"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", MINI)}</tbody></table></div>
         <p class="source mono">Click a row: the version 3 prompt, the reply, the score and the Grader's note</p>${retryRow()}${offlineNote()}
-        ${st >= 1 ? `<div class="row reveal"><span class="big">five logs</span><span class="arrow">&rarr;</span><span>v2 <b>${m2 === null ? "…" : f3(m2)}</b></span><span>v3 <b>${m3 === null ? "…" : f3(m3)}</b></span></div>
+        ${st >= 1 ? `<div class="row reveal"><span class="big">five logs</span><span class="arrow">&rarr;</span><span>v2 <b>${m2 === null ? "…" : f3(m2)}</b></span><span>v3 <b>${m3 === null ? "…" : f3(m3)}</b></span>${costLine("v3", MINI)}</div>
         <div class="note reveal">${m2 === null || m3 === null ? "Marking…" : m3 > m2 ? "The score went up on the five logs the Coach learned from. That is the least it should do, and it proves little: the Coach saw these five. The Judge checks logs it has not seen next." : "The score did not go up on the five logs the Coach learned from. The Judge will drop this candidate."}</div>` : ""}`;
     },
   },
@@ -934,7 +955,7 @@ const SCREENS = [
       const winner = done ? (v3v > v2v ? "v3" : "v2") : null;
       return `${head("Round 1", "Rule two: logs it has <em>never seen</em>", "The ten validation logs. The Coach saw none of them.", true)}
         <div class="scroll tablebox small" tabindex="0" aria-label="Validation logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("val"))}</tbody></table></div>
-        <div class="row reveal"><span class="big">validation</span><span class="arrow">&rarr;</span><span>v2 <b>${v2v === null ? "…" : f3(v2v)}</b></span><span>v3 <b>${v3v === null ? "…" : f3(v3v)}</b></span>${winner ? `<span class="ok">winner: ${winner === "v3" ? "version 3" : "version 2"}</span>` : ""}</div>
+        <div class="row reveal"><span class="big">validation</span><span class="arrow">&rarr;</span><span>v2 <b>${v2v === null ? "…" : f3(v2v)}</b></span><span>v3 <b>${v3v === null ? "…" : f3(v3v)}</b></span>${winner ? `<span class="ok">winner: ${winner === "v3" ? "version 3" : "version 2"}</span>` : ""}${costLine("v3", ids("val"))}</div>
         ${done ? `<div class="note reveal">${better ? "" : "Rule one dropped version 3, and a dropped candidate stops here in a real loop. We checked it anyway so you can see. "}${winner === "v3" ? "Version 3 also wins on logs the Coach never saw, so the Judge keeps it." : "Version 3 does not beat version 2 on validation, so the Judge keeps version 2."}</div>` : ""}${retryRow()}${offlineNote()}`;
     },
   },
@@ -955,7 +976,7 @@ const SCREENS = [
       const done = t2 !== null && t3 !== null;
       return `${head("The test", "The number you <em>can quote</em>", "", true)}
         <div class="scroll tablebox small" tabindex="0" aria-label="Test logs, version 2 against version 3"><table class="compact"><thead><tr><th>#</th><th>Log</th><th class="num">Right answer</th><th class="num">v2 json</th><th class="num">v2 right</th><th class="num">v2 score</th><th class="num">v3 json</th><th class="num">v3 right</th><th class="num">v3 score</th></tr></thead><tbody>${compareRows("v2", "v3", ids("test"))}</tbody></table></div>
-        <div class="row reveal"><span>v2 · five <b>${fm(miniMean("v2"))}</b> · val <b>${fm(v2v)}</b> · test <b>${fm(t2)}</b></span><span class="arrow">&rarr;</span><span>v3 · five <b>${fm(miniMean("v3"))}</b> · val <b>${fm(v3v)}</b> · test <b>${fm(t3)}</b></span></div>
+        <div class="row reveal"><span>v2 · five <b>${fm(miniMean("v2"))}</b> · val <b>${fm(v2v)}</b> · test <b>${fm(t2)}</b></span><span class="arrow">&rarr;</span><span>v3 · five <b>${fm(miniMean("v3"))}</b> · val <b>${fm(v3v)}</b> · test <b>${fm(t3)}</b></span>${costLine("v3", ids("test"))}</div>
         ${done ? `<div class="note warnnote reveal"><b>${t3 > t2 ? "Version 3 holds up on test." : t3 === t2 ? "Test shows no difference." : "Version 3 does worse on test than on validation."}</b> ${fenced("v2")} of 10 version 2 replies were code-fenced and failed the JSON gate, against ${fenced("v3")} of 10 for version 3: mostly a format fix. Ten logs per split is a toy. This test is now used up: change the prompt because of it and it is no longer clean.</div>` : ""}${retryRow()}${offlineNote()}`;
     },
   },
@@ -970,12 +991,15 @@ const SCREENS = [
       if (!R.cand.v3) return `${head("Round after round", "Until all <em>30</em> pass")}<div class="note warnnote">There is no version 3 yet. Go back four slides: the Coach writes it.</div>${retryRow()}${offlineNote()}`;
       if (!L) return `${head("Round after round", "Until all <em>30</em> pass")}${retryRow()}${offlineNote()}<div class="note">${R.status === "live" ? spinner + "Starting the loop…" : "The loop needs the server."}</div>`;
       if (st === 0) {
-        const rows = L.rounds.map((r, n) => `<tr class="reveal"><td class="num">${n + 1}</td><td class="num">${r.v}</td><td class="num">${r.parent}</td><td class="clip" title="${esc(r.lines.join(" / "))}">${esc(r.lines.join(" / ") || "no new line")}</td><td class="num">${fm(r.train)}</td><td class="num">${fm(r.val)}</td><td class="num">${fm(r.test)}</td><td class="num">${r.pass} / 30</td><td class="${r.status === "accepted" || r.status === "round 1" ? "ok" : "faint"}">${esc(r.status)}${L.final === r.v ? " · final" : ""}</td></tr>`).join("");
+        const rows = L.rounds.map((r, n) => `<tr class="reveal"><td class="num">${n + 1}</td><td class="num">${r.v}</td><td class="num">${r.parent}</td><td class="clip" title="${esc(r.lines.join(" / "))}">${esc(r.lines.join(" / ") || "no new line")}</td><td class="num">${fm(r.train)}</td><td class="num">${fm(r.val)}</td><td class="num">${fm(r.test)}</td><td class="num">${r.pass} / 30</td><td class="num" title="${r.cost.calls} calls, about $${r.cost.usd.toFixed(3)}">${fmtN(r.cost.tin)} / ${fmtN(r.cost.tout)}</td><td class="num" title="Sum of the ${r.cost.calls} call times. Four calls run at once, so the wall clock is about a quarter of this.">${fmtMs(r.cost.ms)}</td><td class="${r.status === "accepted" || r.status === "round 1" ? "ok" : "faint"}">${esc(r.status)}${L.final === r.v ? " · final" : ""}</td></tr>`).join("");
+        const sum = L.rounds.reduce((t, r) => ({ calls: t.calls + r.cost.calls, ms: t.ms + r.cost.ms, tin: t.tin + r.cost.tin, tout: t.tout + r.cost.tout, usd: t.usd + r.cost.usd }), { calls: 0, ms: 0, tin: 0, tout: 0, usd: 0 });
+        const total = L.rounds.length ? `<tr><td colspan="8" class="num"><b>All ${L.rounds.length} round${L.rounds.length === 1 ? "" : "s"}</b>${L.running ? " so far" : ""}</td><td class="num" title="${sum.calls} calls, about $${sum.usd.toFixed(2)}"><b>${fmtN(sum.tin)} / ${fmtN(sum.tout)}</b></td><td class="num"><b>${fmtMs(sum.ms)}</b></td><td class="faint">${sum.calls} calls</td></tr>` : "";
         const cur = L.cur, doneActs = cur ? ALL.filter((l) => R.act[cur] && R.act[cur][l.id]).length : 0;
         const progress = L.running ? `<div class="loader" role="status"><span class="loader-art">${claudeLoader(48)}</span><span>${L.phase === "coach" ? `${esc(nice(R.coachModel) || "The Coach")} is rewriting the prompt…` : `Round ${L.n || 1}: the Student answers the 30 logs with ${esc(cur || "v3")} (${doneActs} of 30), then the Grader marks them`}</span></div>` : "";
         const end = L.state === "done" ? `<div class="note reveal"><b>${esc(L.stop)}</b> The Judge picks the prompt that passes the most: <b>${esc(L.final)}</b>.</div>` : "";
         return `${head("Round after round", L.running ? "The loop <em>runs</em>" : "The loop <em>stopped</em>", "Each round: the Coach reads the failing logs, the Student runs the new prompt on all 30, and the Judge accepts it only if it passes more logs.", true)}
-          <div class="scroll tablebox small" tabindex="0" aria-label="Every round of the loop"><table class="compact"><thead><tr><th class="num">Round</th><th class="num">Prompt</th><th class="num">From</th><th>What the Coach added</th><th class="num">train</th><th class="num">val</th><th class="num">test</th><th class="num">Pass all gates</th><th>Judge</th></tr></thead><tbody>${rows}</tbody></table></div>
+          <div class="scroll tablebox small" tabindex="0" aria-label="Every round of the loop"><table class="compact"><thead><tr><th class="num">Round</th><th class="num">Prompt</th><th class="num">From</th><th>What the Coach added</th><th class="num">train</th><th class="num">val</th><th class="num">test</th><th class="num">Pass all gates</th><th class="num">Tokens in / out</th><th class="num">Model time</th><th>Judge</th></tr></thead><tbody>${rows}${total}</tbody></table></div>
+          <p class="source mono">Model time adds up every call's time. Four calls run at once, so the clock on the wall is about a quarter of it.</p>
           ${progress}${end}${retryRow()}${offlineNote()}`;
       }
       if (L.state !== "done") return `${head("The result", "The prompt we <em>keep</em>")}<div class="note">${L.state === "error" ? "The loop stopped on an error: " + esc(L.stop) : spinner + "The loop is still running. Go back one step to watch it."}</div>${retryRow()}${offlineNote()}`;
