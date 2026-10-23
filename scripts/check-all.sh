@@ -9,8 +9,8 @@ if [ -d "$EK/web/public" ]; then python3 -I build.py --eklavya "$EK"; else echo 
 node scripts/verify-numbers.js | tail -1
 node scripts/smoke-render.js | tail -1
 OUT="$(mktemp)"
-if node --test --test-timeout=60000 scripts/test-server.mjs scripts/test-loop.js > "$OUT" 2>&1; then
-  grep -E '^ℹ (tests|pass|fail)' "$OUT"
+if node --test --test-reporter=spec --test-timeout=60000 scripts/test-server.mjs scripts/test-loop.js > "$OUT" 2>&1; then
+  grep -E '^ℹ (tests|pass|fail)' "$OUT" || true
 else
   cat "$OUT"; rm -f "$OUT"; echo "tests failed"; exit 1
 fi
