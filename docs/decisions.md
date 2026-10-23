@@ -31,6 +31,7 @@ First written 23 Oct 2026; updated the same day when the screens moved from mock
 | Models | **Haiku 4.5 acts** (the Student), **Haiku 5.5 grades**, **Sonnet 5.5 coaches** (my choice: the speaker named no Coach model; a stronger model suits reading failures and rewriting a prompt). Different models, so nothing grades itself. Override with `ACTOR_MODEL`, `GRADER_MODEL` and `COACH_MODEL`. |
 | **The loop, from slide 7** (23 Oct) | Speaker's call: rethink everything after the score slide around the five roles and run it for real. **One round, by hand, labelled as such: it is not the `gepa` package** (not installed, and it would need API keys this setup avoids). Teacher = the 30 logs; Student = Haiku 4.5; Grader = three code gates plus Haiku 5.5's note; Coach = Sonnet 5.5 via `/api/coach`; Judge = a rule in code. The minibatch is five train logs, one per label (ids 1, 2, 3, 6, 7). Slides: who plays whom, Student and Grader on the five, the Coach rewrites, the Student tries again, the Judge decides (rule one: beat the parent on the same five; rule two: the winner on the ten validation logs), the test once. |
 | Strict JSON parsing kept | Assumed, not decided by the speaker: a code-fenced reply fails the JSON gate. It is what gives the Coach something real to find (see the live findings). Fence-tolerant parsing remains an open question. |
+| The loop, repeated (slide 13) | Speaker's call, 23 Oct: loop until the prompt passes all 30, then show the final prompt. Two steps: the loop runs (starts by itself on arrival; rows appear as rounds finish), then the final prompt as a diff against version 2. **This spends the test split**, because the Coach has to read failures from every split to get to 30 of 30; the slide says so and says a fresh pipeline would be needed to claim the number. Cached, the loop replays in about a second. |
 | Role figure | Each slide from the score slide on shows the active character, bottom right (speaker's call, 23 Oct). |
 | Grader's job | Reads each reply for meaning and says whether it names the right failure, ignoring format. It is a second opinion next to the three code gates, so the screen can show where they disagree. |
 | How calls run | `server.mjs` (Node, no dependencies) serves the page and runs `claude -p` with no tools, hooks, MCP servers or saved session, from a temp directory. Answers are cached in `.cache/llm.json`; `--replay` presents from the cache only. |
@@ -60,9 +61,9 @@ First written 23 Oct 2026; updated the same day when the screens moved from mock
 then run **(live)** · 4. What is GEPA (one step, with install, repository and the Claude plugin) ·
 5. How GEPA works (the cast: Teacher, Student, Grader, Coach, Judge, then the loop) · 6. We need a score: examples, answers, split,
 score v1 and v2 **(live, with a judge column)** · 7. Who plays whom (the cast gets real models) · 8. Student and Grader: the first try, on five logs **(live)** ·
-9. The Coach rewrites the prompt **(live)** · 10. The Student tries again **(live)** · 11. The Judge decides **(live)** · 12. The test, once **(live)** · 13. The checklist
+9. The Coach rewrites the prompt **(live)** · 10. The Student tries again **(live)** · 11. The Judge decides **(live)** · 12. The test, once **(live)** · 13. Round after round: the loop until all 30 pass, then the final prompt **(live)** · 14. The checklist
 
-Slides 6 to 12 show the role figure bottom right.
+Slides 6 to 13 show the role figure bottom right.
 
 ## What the first live runs showed (23 Oct 2026, Haiku 4.5 acting, Haiku 5.5 grading; the original 12-log set, so counts are out of 9)
 
@@ -85,9 +86,11 @@ Real, one run each, pinned by the cache. Re-run before quoting.
 
 - **Version 2 scores 0.000 on all 30 logs under strict gates:** every reply is wrapped in a code fence, so none parses.
 - **The Coach found it in about 6 s.** Its reason: all five replies had the right label, but each was code-fenced, so the JSON check failed. It added one line to the rules block: output raw JSON only, no code fence or backticks, first character `{`, last `}`. Nothing else changed.
-- **Version 3, the five logs:** 0.767 (4 of 5 labels right; checkpoint lag, log 3, got a wrong label). **Validation:** 0.000 to 0.783. **Test:** 0.000 to 0.708. Test log 26 (STRING to FLOAT) fails the JSON gate even with the new line; test log 22 (empty topic) gets a wrong label. The Judge keeps version 3 on both rules.
+- **Version 3 (round 1):** the five logs 0.717; validation 0.000 to 0.783; test 0.000 to 0.633; 23 of 30 logs pass all three gates (failing: logs 3, 5, 8, 12, 22, 25, 26). Version 2 was code-fenced on 10 of 10 test replies, version 3 on 2 of 10. (The numbers moved from an earlier run because the Coach's input wording changed from "five examples" to a count, which made a new Coach call; the cache keys on the exact prompt.)
 - **What this does and does not show:** the gain is real and comes from a formatting fix, not from smarter classification (the Grader said "right idea" on version 2's replies all along). It is one round, one run, ten logs per split, and a second Coach run may write a different prompt.
-- **Cost and speed:** the Coach call is about 6 s. A full warm-up of every call the walkthrough makes is about 190 calls.
+- **The loop (slide 13):** round 2 (version 4) passes 29 of 30, round 3 (version 5) passes 30 of 30, and the loop stops. Version 5 scores train 0.775, validation 0.850, test 0.775 (not 1.000: a reply over 15 words keeps a passing log under 1). The Coach added rules for code fences, LATE_DATA and SCHEMA_DRIFT.
+- **History of the loop's rules, so nobody re-derives them:** a first version let the Coach read only train failures and ran four rounds. Rounds 2 to 5 were identical, because a dropped child left the parent unchanged and the cached Coach call returned the same text. A second version (accept on train score) stopped after one round: version 4 passed every train log (28 of 30 overall) and the Coach may not read validation or test. The speaker wants all 30 to pass, so the final rule is: the Coach reads failures from all 30 logs, the Judge accepts a child that passes more logs (ties: higher mean score), earlier failed attempts go back into the Coach's input so rounds differ, and the loop stops at 30 of 30 or after five rounds.
+- **Cost and speed:** the Coach call is 3 to 6 s. A candidate run on all 30 logs is 60 calls, about 90 s live. A full warm-up of every call the walkthrough makes is about 400 calls and several minutes.
 
 - **Replay works for the whole loop.** Checked on `--replay`: the Coach slide and the test slide answer from the cache with no model call (171 recorded calls).
 - **Scroll at 1280×800:** every step fits except small overruns that are only the mascot's reserved gap (slide 7 step 5 +15 px, slide 9 step 2 +23, slide 11 step 1 +14, slide 12 step 1 +17). Not checked at 560×900.
@@ -119,7 +122,6 @@ the install from `main`, the Claude Code skill commands, the entry points (`gepa
 - **Recordings made before 23 Oct 2026, 19:24 have no timestamp** and show "time not recorded" until each call is re-run
   with Run now. A "re-run all" button is not built; it would cost about 50 calls.
 - **Decide how strict the parser is.** Today a code-fenced reply fails the JSON gate, which makes version 2 score 0.000 and gives the Coach its finding. The alternative (strip the fence before parsing) would make version 2 look better and leave the Coach less to find.
-- **Iterate (last slide).** The speaker said the last slide could iterate on the loop. Not built: one round only. A second round would need the Coach to see version 3's failures (the five logs now include log 3) and a second candidate on the shelf.
 - **Real `gepa` package.** Screens 7 to 12 are the loop by hand. Running the actual package is not done and not verified here.
 - **More feedback from the speaker is coming in a new session.** Apply it through `src/template.html`.
 - Before the talk: run every live screen once to fill the cache, then present with `node server.mjs --replay`,
