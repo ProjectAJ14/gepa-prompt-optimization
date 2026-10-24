@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Build index.html from src/template.html.
 
-The template holds five placeholders. This script fills them with Eklavya's design
-tokens and Archer Cloak mascot, the loading critter from src/claude-loader.svg and the
-header logo from src/nonstop-logo.svg, so the finished page is one file that works offline
+The template holds six placeholders. This script fills them with Eklavya's design
+tokens and Archer Cloak mascot, the loading critter from src/claude-loader.svg, the
+header logo from src/nonstop-logo.svg and the closing slide's QR code from src/linkedin-qr.svg, so the finished page is one file that works offline
 (only the web fonts are fetched; offline, system fonts take over).
 
     python3 build.py                      # Eklavya checkout at the default path
@@ -35,13 +35,15 @@ if missing:
 sources["/*LOADER_SVG*/"] = ROOT / "src" / "claude-loader.svg"
 # The header logo goes in through <img> as a data URI, so nothing inside the SVG can run. Replace src/nonstop-logo.svg to change it.
 sources["/*LOGO_URI*/"] = ROOT / "src" / "nonstop-logo.svg"
+# The QR code on the closing slide is also embedded as a data URI. Regenerate it with scripts/make-qr.py.
+sources["/*QR_URI*/"] = ROOT / "src" / "linkedin-qr.svg"
 
 page = (ROOT / "src" / "template.html").read_text(encoding="utf-8")
 for marker, path in sources.items():
     if marker not in page:
         sys.exit(f"placeholder {marker} is missing from src/template.html")
     text = path.read_text(encoding="utf-8")
-    if marker == "/*LOGO_URI*/":
+    if marker in ("/*LOGO_URI*/", "/*QR_URI*/"):
         text = "data:image/svg+xml;base64," + base64.b64encode(path.read_bytes()).decode("ascii")
     if marker == "/*LOADER_SVG*/":
         if "`" in text or "${" in text:

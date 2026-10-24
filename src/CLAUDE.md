@@ -2,7 +2,7 @@
 
 One file: styles, markup shell, data, scoring, screens and navigation. `build.py` replaces
 `/*TOKENS*/`, `/*MASCOT_CSS*/` and `/*MASCOT_JS*/` with Eklavya's files, and `/*LOADER_SVG*/` with `src/claude-loader.svg` (the
-loading critter, embedded in a JS template string, so no backtick or `${` in it). and `/*LOGO_URI*/` with `src/nonstop-logo.svg` as a base64 data URI (the header logo). Keep those five markers.
+loading critter, embedded in a JS template string, so no backtick or `${` in it). and `/*LOGO_URI*/` with `src/nonstop-logo.svg` as a base64 data URI (the header logo). The closing slide's QR code is `/*QR_URI*/` from `src/linkedin-qr.svg`, the same way. Keep those six markers.
 
 ## Order of things inside the script
 

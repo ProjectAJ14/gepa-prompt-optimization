@@ -227,6 +227,11 @@
   .tip { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line-2); background: var(--panel); }
   .tip h3 { margin: 0 0 2px; } .tip p { margin: 0; color: var(--dim); font-size: 0.86em; }
   .tipface { flex: 0 0 auto; display: flex; }
+  .closing { display: flex; align-items: center; justify-content: center; gap: clamp(28px, 6vw, 84px); flex-wrap: wrap; margin-top: clamp(16px, 5vh, 64px); }
+  .closing .bigq { margin-top: 0; }
+  .connect { display: flex; flex-direction: column; align-items: center; gap: 4px; text-decoration: none; color: var(--dim); font-size: 0.82em; }
+  .connect .qr { width: clamp(110px, 20vh, 190px); height: auto; border: 1px solid var(--line-2); }
+  .connect .who { color: var(--dim); }
   .bigq { text-align: center; font-family: var(--font-disp); font-weight: 800; letter-spacing: -0.03em; line-height: 1; font-size: clamp(40px, min(13vh, 14vw), 150px); margin-top: clamp(24px, 9vh, 120px); color: var(--ink); }
   .bigq em { font-style: normal; color: var(--spot); }
   @media (max-width: 900px) { .tips { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
@@ -1127,7 +1132,13 @@ const SCREENS = [
       return `
       ${head("Take this home", "Before you point an optimizer at a <em>prompt</em>", "", true)}
       <div class="tips">${items.map((x) => `<div class="tip reveal"><span class="tipface">${EklavyaMascot.svg({ expression: x[2], variant: "face", size: 52 })}</span><div><h3>${esc(x[0])}</h3><p>${esc(x[1])}</p></div></div>`).join("")}</div>
-      <div class="bigq reveal">Questions<em>?</em></div>`;
+      <div class="closing reveal">
+        <div class="bigq">Questions<em>?</em></div>
+        <a class="connect" href="https://www.linkedin.com/in/ajaykumar2114/" target="_blank" rel="noopener" aria-label="Ajay Kumar on LinkedIn: scan the code or follow the link">
+          <img class="qr" src="/*QR_URI*/" alt="QR code for the speaker's LinkedIn profile" width="148" height="148">
+          <span class="mono">Scan to connect</span><span class="who">Ajay Kumar · linkedin.com/in/ajaykumar2114</span>
+        </a>
+      </div>`;
     },
   },
 ];

@@ -104,6 +104,7 @@ EKLAVYA_DIR=../eklavya scripts/check-all.sh    # build, numbers, render every st
 | `index.html` | Built from the template. Committed so it runs with no build |
 | `server.mjs` | The local server: serves the page and runs the model calls |
 | `recordings/llm.json` | One recorded run, for `--replay` |
+| `src/linkedin-qr.svg`, `scripts/make-qr.py` | The closing slide's QR code, and the dependency-free script that made it. Point it at your own profile if you reuse the deck |
 | `scripts/` | `check-all.sh`, the server tests (against a fake `claude`), the loop tests (against a stub server), the render check |
 | `docs/` | The decisions log and the screenshots above |
 

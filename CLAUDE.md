@@ -9,7 +9,7 @@ check before believing its results. Read `docs/decisions.md` for what was decide
 
 | Path | Responsibility |
 |---|---|
-| `src/template.html` | **The source.** Markup, styles, all screens, the logs, scoring and the loop code. Has five placeholders. |
+| `src/template.html` | **The source.** Markup, styles, all screens, the logs, scoring and the loop code. Has six placeholders. |
 | `build.py` | Fills the placeholders with Eklavya's tokens and mascot and writes `index.html` |
 | `index.html` | Built output, committed so it opens with no build step. Never edit it by hand |
 | `server.mjs` | Local server: serves the page and runs the live model calls through `claude -p`, with a cache and a replay mode |
@@ -22,6 +22,7 @@ check before believing its results. Read `docs/decisions.md` for what was decide
 | `scripts/smoke-render.js` | Renders every step of every screen in a fake DOM and reports any that throw |
 | `.claude/rules/` | The speaker's standing requirements, one file per area: `slides.md`, `live-model-calls.md`, `checks.md` |
 | `src/claude-loader.svg` | The loading critter shown while a model call runs; `build.py` inlines it. Replace the file to change it |
+| `src/linkedin-qr.svg` | The QR code on the closing slide, linking to the speaker's LinkedIn profile. `build.py` embeds it. Made by `scripts/make-qr.py` (no dependencies); regenerate it there and **scan the slide with a phone** before presenting |
 | `src/nonstop-logo.svg` | The logo in the header's top right, on every screen. `build.py` embeds it as a data URI |
 | `src/CLAUDE.md` | How the template is structured and how to add a screen |
 | `docs/decisions.md` | Decisions, what the live runs showed, verified facts with their sources, and open items |
